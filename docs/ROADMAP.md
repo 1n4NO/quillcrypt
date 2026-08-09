@@ -38,11 +38,14 @@ annotation re-attaches to the right place.
 - Tests: `extension/test/anchoring.test.js` (5/5 passing)
 - Findings: `docs/spikes/QC-1-anchoring.md`
 
-**QC-2 — Spike: encrypted Yjs updates over a blind relay** *(Spike, M)*
+**QC-2 — Spike: encrypted Yjs updates over a blind relay** *(Spike, M)* — **Done**
 Two local clients, a trivial WebSocket relay that only forwards binary blobs, Yjs updates
 encrypted with libsodium secretbox before sending, decrypted on receipt.
-- AC: two browser tabs converge to the same document state
-- AC: relay process, when inspected, never has plaintext content in memory or logs
+- AC: two browser tabs converge to the same document state ✅
+- AC: relay process, when inspected, never has plaintext content in memory or logs ✅
+- Implementation: `relay-server/src/relay.js`, `relay-server/src/index.js`
+- Tests: `relay-server/test/relay.test.js` (6/6 passing)
+- Findings: `docs/spikes/QC-2-encrypted-relay.md`
 
 **QC-3 — Spike: invite-link key exchange** *(Spike, S)*
 Generate a workspace symmetric key client-side, encode it in a URL fragment, confirm it never
