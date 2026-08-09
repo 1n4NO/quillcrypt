@@ -1,0 +1,10 @@
+/* Overlay layer styles — SVG annotation surface + toolbar.
+   See docs/ROADMAP.md QC-23, QC-24 (positioning + z-index conflict handling). */
+
+.quillcrypt-overlay-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 2147483647;
+}

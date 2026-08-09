@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Quillcrypt",
+  "version": "0.1.0",
+  "description": "Collaborative, end-to-end encrypted web annotation.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "quillcrypt@yourdomain.dev",
+      "strict_min_version": "115.0"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "scripts": ["src/background/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content-script.js"],
+      "css": ["src/overlay/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "activeTab"],
+  "action": {
+    "default_title": "Quillcrypt"
+  }
+}

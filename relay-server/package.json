@@ -1,0 +1,14 @@
+{
+  "name": "quillcrypt-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Thin, blind WebSocket relay for encrypted Quillcrypt CRDT updates.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "quillcrypt-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Firefox extension: collaborative, end-to-end encrypted web annotation.",
+  "scripts": {
+    "dev": "web-ext run",
+    "build": "web-ext build",
+    "lint": "web-ext lint"
+  },
+  "devDependencies": {
+    "web-ext": "^8.2.0"
+  },
+  "dependencies": {
+    "yjs": "^13.6.18",
+    "libsodium-wrappers": "^0.7.13"
+  }
+}
