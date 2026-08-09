@@ -72,13 +72,30 @@ annotations persisted locally. No accounts, no network calls yet.
 
 ### Epic: Core anchoring & storage
 
-**QC-10 — Content script injection & page readiness detection** *(Story, S)*
-**QC-11 — Text anchoring engine (quote + position + context)** *(Story, L)*
-- AC: anchors survive reload, minor DOM changes, and scroll position changes
-**QC-12 — Local persistence layer (per-URL annotation store)** *(Story, M)*
-- AC: annotations keyed by normalized URL, survive browser restart
-**QC-13 — Annotation data model & schema versioning** *(Task, S)*
-- AC: schema includes a version field so Phase 3 can add encryption without a breaking migration
+**QC-10 — Content script injection & page readiness detection** *(Story, S)* — **Done**
+- Implementation: `extension/src/content/readiness.js`
+- Tests: `extension/test/readiness.test.js` (9/9 passing)
+
+**QC-11 — Text anchoring engine (quote + position + context)** *(Story, L)* — **Done**
+- AC: anchors survive reload, minor DOM changes, and scroll position changes ✅
+- Core engine from QC-1, plus live DOM Selection/Range integration added here
+- Implementation: `extension/src/content/anchoring/anchoring.js`, `.../rangeAnchoring.js`
+- Tests: `extension/test/anchoring.test.js`, `extension/test/rangeAnchoring.test.js` (10/10 passing combined)
+
+**QC-12 — Local persistence layer (per-URL annotation store)** *(Story, M)* — **Done**
+- AC: annotations keyed by normalized URL, survive browser restart ✅
+- Implementation: `extension/src/storage/store.js` (pluggable backend — swap `InMemoryBackend`
+  for a `browser.storage.local`-backed implementation when wiring into the real extension)
+- Tests: `extension/test/store.test.js` (8/8 passing)
+
+**QC-13 — Annotation data model & schema versioning** *(Task, S)* — **Done**
+- AC: schema includes a version field so Phase 3 can add encryption without a breaking migration ✅
+- Implementation: `extension/src/models/annotation.js` (includes a working migration-chain
+  mechanism, proven with a fabricated 2-step chain since no real migrations exist yet at v1)
+- Tests: `extension/test/annotation.test.js` (11/11 passing)
+
+**Epic status: all four tickets done, 38/38 tests passing across the epic.** Run everything
+with `cd extension && npm install && npm test`.
 
 ### Epic: Annotation tools
 

@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "web-ext run",
     "build": "web-ext build",
-    "lint": "web-ext lint"
+    "lint": "web-ext lint",
+    "test": "node test/anchoring.test.js && node test/rangeAnchoring.test.js && node test/readiness.test.js && node test/annotation.test.js && node test/store.test.js && node test/keyExchange.test.js"
   },
   "devDependencies": {
-    "web-ext": "^8.2.0"
+    "web-ext": "^8.2.0",
+    "jsdom": "^24.0.0",
+    "libsodium-wrappers": "^0.7.13"
   },
   "dependencies": {
-    "yjs": "^13.6.18",
-    "libsodium-wrappers": "^0.7.13"
+    "yjs": "^13.6.18"
   }
 }
