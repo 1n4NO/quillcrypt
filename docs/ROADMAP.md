@@ -28,12 +28,15 @@ them as a starting conversation for planning, not a commitment.
 **Goal:** answer the two questions that could invalidate the whole architecture before
 building product on top of it.
 
-**QC-1 — Spike: text anchoring across reflow** *(Spike, M)*
+**QC-1 — Spike: text anchoring across reflow** *(Spike, M)* — **Done**
 Adapt Hypothesis's open-source anchoring approach (quote + position + context) to anchor a
 highlight to a paragraph, reload the page with slightly different content, confirm the
 annotation re-attaches to the right place.
-- AC: anchor survives a reordered paragraph and a changed word nearby
-- AC: documented failure modes (fully removed text, paywalled/reflowed SPA content)
+- AC: anchor survives a reordered paragraph and a changed word nearby ✅
+- AC: documented failure modes (fully removed text, paywalled/reflowed SPA content) ✅
+- Implementation: `extension/src/content/anchoring/anchoring.js`
+- Tests: `extension/test/anchoring.test.js` (5/5 passing)
+- Findings: `docs/spikes/QC-1-anchoring.md`
 
 **QC-2 — Spike: encrypted Yjs updates over a blind relay** *(Spike, M)*
 Two local clients, a trivial WebSocket relay that only forwards binary blobs, Yjs updates
