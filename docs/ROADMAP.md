@@ -47,15 +47,21 @@ encrypted with libsodium secretbox before sending, decrypted on receipt.
 - Tests: `relay-server/test/relay.test.js` (6/6 passing)
 - Findings: `docs/spikes/QC-2-encrypted-relay.md`
 
-**QC-3 — Spike: invite-link key exchange** *(Spike, S)*
+**QC-3 — Spike: invite-link key exchange** *(Spike, S)* — **Done**
 Generate a workspace symmetric key client-side, encode it in a URL fragment, confirm it never
 appears in any network request (including to the relay).
-- AC: key visible in the fragment but absent from every captured request in devtools
+- AC: key visible in the fragment but absent from every captured request in devtools ✅ (structural proof; see caveats)
+- Implementation: `extension/src/crypto/keyExchange.js`
+- Tests: `extension/test/keyExchange.test.js` (6/6 passing)
+- Findings: `docs/spikes/QC-3-invite-link.md`
 
-**QC-4 — Decide: SVG overlay vs. canvas for draw/shape layer** *(Task, S)*
+**QC-4 — Decide: SVG overlay vs. canvas for draw/shape layer** *(Task, S)* — **Done**
 Prototype both for a freehand stroke + a rectangle; evaluate hit-testing, scroll/resize
 repositioning, and z-index conflicts with host-page content.
-- AC: written decision + rationale in `docs/ARCHITECTURE.md`
+- AC: written decision + rationale in `docs/ARCHITECTURE.md` ✅
+- Decision: **SVG overlay** — see `docs/ARCHITECTURE.md` for full comparison table and rationale
+
+**Phase 0 status: all four tickets done.** Ready to move into Phase 1 (QC-10 onward).
 
 ---
 
