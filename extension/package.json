@@ -7,7 +7,7 @@
     "dev": "web-ext run",
     "build": "web-ext build",
     "lint": "web-ext lint",
-    "test": "node test/anchoring.test.js && node test/rangeAnchoring.test.js && node test/readiness.test.js && node test/annotation.test.js && node test/store.test.js && node test/keyExchange.test.js"
+    "test": "node test/anchoring.test.js && node test/rangeAnchoring.test.js && node test/readiness.test.js && node test/annotation.test.js && node test/store.test.js && node test/keyExchange.test.js && node test/textDecoration.test.js && node test/shapeTools.test.js && node test/toolsAndUndo.test.js"
   },
   "devDependencies": {
     "web-ext": "^8.2.0",

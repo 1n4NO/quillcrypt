@@ -99,15 +99,50 @@ with `cd extension && npm install && npm test`.
 
 ### Epic: Annotation tools
 
-**QC-14 — Highlight tool** *(Story, M)*
-**QC-15 — Underline tool** *(Story, S)*
-**QC-16 — Freehand draw tool (SVG overlay)** *(Story, L)*
-**QC-17 — Arrow tool** *(Story, M)*
-**QC-18 — Shape tools (rectangle, ellipse)** *(Story, M)*
-**QC-19 — Sticky note tool (anchored comment bubble)** *(Story, M)*
-**QC-20 — Toolbar UI (tool selection, color, stroke width)** *(Story, M)*
-**QC-21 — Undo/redo stack** *(Story, M)*
-**QC-22 — Delete / edit existing annotation** *(Story, S)*
+**QC-14 — Highlight tool** *(Story, M)* — **Done**
+**QC-15 — Underline tool** *(Story, S)* — **Done**
+- Both share one engine: `extension/src/tools/inlineDecoration.js` (splits Range boundaries,
+  wraps contained text nodes, handles the single-text-node edge case where `commonAncestorContainer`
+  is the text node itself)
+- Ticket-specific wrappers: `extension/src/tools/highlight.js`, `.../underline.js`
+- Tests: `extension/test/textDecoration.test.js` (16/16 passing)
+
+**QC-16 — Freehand draw tool (SVG overlay)** *(Story, L)* — **Done**
+- Implementation: `extension/src/tools/draw.js` — point-to-SVG-path conversion plus
+  Douglas-Peucker simplification (the point-reduction mitigation flagged in `docs/ARCHITECTURE.md`
+  QC-4 for long freehand strokes)
+- Tests: `extension/test/shapeTools.test.js` (shared file, see below)
+
+**QC-17 — Arrow tool** *(Story, M)* — **Done**
+- Implementation: `extension/src/tools/arrow.js` — shaft + arrowhead geometry, correct at any angle
+
+**QC-18 — Shape tools (rectangle, ellipse)** *(Story, M)* — **Done**
+- Implementation: `extension/src/tools/shapes.js` — normalizes any of the four drag directions
+  to consistent, non-negative SVG attributes
+- QC-16/17/18 tests combined: `extension/test/shapeTools.test.js` (28/28 passing)
+
+**QC-19 — Sticky note tool (anchored comment bubble)** *(Story, M)* — **Done**
+- Implementation: `extension/src/tools/note.js` — positions relative to the anchor, flips side
+  and clamps to the viewport so the note bubble never renders off-screen
+
+**QC-20 — Toolbar UI (tool selection, color, stroke width)** *(Story, M)* — **Done**
+- Implementation: `extension/src/ui/toolbar.js` — the state machine behind the toolbar (tool
+  exclusivity, color/stroke-width validation, pub/sub for the UI to subscribe to). Actual DOM
+  rendering of the toolbar still needs building on top of this — not meaningfully unit-testable,
+  left for manual/visual QA once wired into the content script.
+
+**QC-21 — Undo/redo stack** *(Story, M)* — **Done**
+- Implementation: `extension/src/ui/undoRedo.js` — command-pattern stack, bounded history,
+  redo-invalidation-on-new-action. Synchronous by design (for local Yjs operations) — see QC-22
+  for why async store operations use a separate controller rather than forcing async into this API.
+
+**QC-22 — Delete / edit existing annotation** *(Story, S)* — **Done**
+- Implementation: `extension/src/models/editController.js` — async-aware edit/delete history on
+  top of the QC-12 store, verified with an interleaved edit→delete→undo×2 scenario
+- QC-19/20/21/22 tests combined: `extension/test/toolsAndUndo.test.js` (25/25 passing)
+
+**Epic status: all nine tickets done.** Run everything with `cd extension && npm test`
+(covers all epics so far).
 
 ### Epic: Overlay rendering
 
