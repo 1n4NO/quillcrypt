@@ -146,14 +146,42 @@ with `cd extension && npm install && npm test`.
 
 ### Epic: Overlay rendering
 
-**QC-23 — SVG overlay positioning on scroll/resize** *(Story, M)*
+**QC-23 — SVG overlay positioning on scroll/resize** *(Story, M)* — **Done (logic); needs real-browser QA**
 - AC: shapes stay pinned to their original viewport position through scroll, resize, and
-  page zoom
-**QC-24 — Z-index conflict handling with host page** *(Task, S)*
-**QC-25 — Annotation list/sidebar panel per page** *(Story, M)*
+  page zoom — addressed by design (document-coordinate overlay, per QC-4), not by manual
+  transform code
+- Implementation: `extension/src/overlay/overlayDimensions.js`
+- **Caveat, stated plainly: jsdom has no layout engine, so this could only be tested with
+  mock document/window objects exercising this module's own diffing logic — not real
+  scroll/resize/zoom behavior.** See `docs/spikes/QC-23-overlay-sizing.md` for exactly what
+  is and isn't verified, and the manual QA pass this needs before Phase 1 can be considered
+  truly exited.
+
+**QC-24 — Z-index conflict handling with host page** *(Task, S)* — **Done**
+- Implementation: `extension/src/overlay/zIndexGuard.js` — CSS-spec-max z-index, with the
+  real defense against ties being DOM-order (overlay kept as last child of `<body>`, including
+  against host scripts appending elements later)
+- Tests: fully verified with real jsdom DOM manipulation (unlike QC-23, this doesn't depend on
+  layout, so no mocking caveat applies here)
+
+**QC-25 — Annotation list/sidebar panel per page** *(Story, M)* — **Done**
+- Implementation: `extension/src/ui/sidebar.js` — reading-order sort for text-anchored items,
+  excerpting per type, case-insensitive filtering
+- Known limitation documented in the file: shape-only annotations (no text anchor) sort by
+  creation time and list after all text-anchored items, rather than being interleaved by
+  actual page position — flagged as a candidate follow-up ticket once there's user feedback
+- QC-23/24/25 tests combined: `extension/test/overlayAndSidebar.test.js` (18/18 passing —
+  verified by actually running this exact file, not estimated from the individual spike counts)
+
+**Epic status: all three tickets done, with QC-23 flagged for manual browser QA before
+full sign-off.** Run everything with `cd extension && npm test`.
 
 **Phase 1 exit criteria:** a person can install the extension, annotate any page with every
 tool, close the browser, come back, and see their annotations exactly where they left them.
+
+**Phase 1 status: all three epics done (17 tickets total). One open item before declaring
+Phase 1 fully exited: QC-23's manual real-browser QA pass (scroll/resize/zoom/lazy-load) has
+not been performed — everything else has been built and automated-tested.**
 
 ---
 
