@@ -190,13 +190,90 @@ not been performed — everything else has been built and automated-tested.**
 **Goal:** multiple people see each other's annotations live on the same page. Deliberately
 *not* encrypted yet — isolates sync bugs from crypto bugs.
 
-**QC-30 — Yjs document model for annotations** *(Story, L)*
-**QC-31 — WebSocket relay server (thin, stateless forwarding)** *(Story, M)*
-**QC-32 — Client sync layer (connect, reconnect, offline queue)** *(Story, L)*
-**QC-33 — Presence: live cursors / who's viewing this page** *(Story, M)*
-**QC-34 — Conflict resolution QA pass (concurrent edits to same annotation)** *(Task, M)*
-**QC-35 — Workspace model: a workspace = a set of URLs or a domain** *(Story, M)*
-**QC-36 — Basic invite flow (share a link, join a workspace)** *(Story, M)*
+**QC-30 — Yjs document model for annotations** *(Story, L)* — **Done**
+- Implementation: `extension/src/sync/annotationYDoc.js` — root `Y.Map` keyed by annotation id,
+  each value a nested `Y.Map` per annotation so field-level edits merge independently rather
+  than one client's edit clobbering another's
+- Tests: `extension/test/annotationYDoc.test.js` (10/10 passing) — includes real evidence of
+  the CRDT guarantees that matter for this product: concurrent edits to *different* fields of
+  the same annotation both survive a merge, concurrent edits to the *same* field converge to
+  an identical (not corrupted) value on both sides, and a delete-vs-edit race also converges
+  identically on both docs
+
+**QC-31 — WebSocket relay server (thin, stateless forwarding)** *(Story, M)* — **Done**
+- Builds on the QC-2 spike's blind-relay mechanism, hardened for production: rooms are cleaned
+  up when their last client disconnects (no unbounded memory growth), multiple simultaneous
+  rooms are isolated from each other, and one broken peer's send failure doesn't block
+  broadcast to the rest of the room
+- Implementation: `relay-server/src/relay.js` (the QC-2 file, extended — `broadcastToRoom`
+  extracted as a standalone function specifically so peer-failure resilience is independently
+  testable with mock objects, since the real server-side connections aren't reachable from
+  outside the module for testing)
+- Tests: `relay-server/test/relayHardening.test.js` (9/9 passing) — confirmed the original
+  QC-2 encrypted-relay test (`relay-server/test/relay.test.js`, 6/6) still passes unchanged
+  against this hardened version
+- **Note on a mistake caught during this ticket:** the first draft of the resilience test
+  overrode `.send()` on a *client-side* WebSocket object to simulate a broken peer — that's
+  invalid, since the relay's broadcast loop calls `.send()` on its own internal *server-side*
+  connection objects, which client code can't reach. That test would have passed for the wrong
+  reason (nothing server-side ever actually threw). Fixed by extracting `broadcastToRoom` so
+  the failure path can be tested directly with real mock peers.
+**QC-32 — Client sync layer (connect, reconnect, offline queue)** *(Story, L)* — **Done**
+- Implementation: `extension/src/sync/syncClient.js` — wraps a `Y.Doc` + WebSocket connection;
+  injectable `WebSocketImpl` so the same code runs against a real browser's native `WebSocket`
+  and against the `ws` package in tests
+- Tests: `extension/test/syncClient.test.js` (7/7 passing) — run against a REAL relay instance
+  (cross-package require of `relay-server/src/relay.js`, verified to resolve correctly), not
+  mocked. Covers: end-to-end sync through the full stack, echo-loop prevention (a client never
+  re-sends an update it just received), offline queueing of local edits made while
+  disconnected, actual reconnect-with-backoff timing, the queued edit reaching a peer after
+  reconnect, and clean manual disconnect not triggering further reconnect attempts.
+- **Scope note, stated in the file itself:** this guarantees your OWN edits made while offline
+  survive and sync once reconnected. It does NOT guarantee catching up on updates OTHER
+  clients broadcast while you were offline — the relay has no persistence yet (that's QC-37).
+  If someone else edits while you're disconnected, you'll miss that specific change until
+  QC-37 lands, though you'll reconverge on anything they still have when you're both online
+  together again.
+**QC-33 — Presence: live cursors / who's viewing this page** *(Story, M)* — **Done**
+- Implementation: `extension/src/sync/presenceClient.js` — deliberately a SEPARATE channel
+  from `SyncClient` (own WebSocket connection, own room id suffix `:presence`) rather than
+  multiplexed onto document sync, so a presence bug can't corrupt document state and vice versa
+- Heartbeat + timeout-based staleness detection, plus immediate removal on a clean explicit
+  leave message (doesn't make other clients wait out the full timeout when someone closes the
+  tab normally)
+- Tests: `extension/test/presenceClient.test.js` (8/8 passing) against a real relay instance —
+  covers discovery, state-merge updates, explicit-leave (instant removal), AND a genuinely
+  silent disconnect (heartbeat/prune timers killed, connection yanked with no leave message)
+  still resolving correctly via timeout-based pruning
+**QC-34 — Conflict resolution QA pass (concurrent edits to same annotation)** *(Task, M)* — **Done**
+- Distinct from (and complementary to) QC-30's tests: QC-30 verified CRDT merge semantics via
+  direct in-process `Y.Doc` sync; this ticket stress-tests the REAL production stack — three
+  actual `SyncClient`s through the actual relay, with rapid concurrent writes and no pause to
+  let sync settle in between
+- Tests: `extension/test/conflictQA.test.js` (4/4 passing) — 30 rapid concurrent writes to the
+  same field across 3 real network-connected clients converge to an identical, uncorrupted
+  value; concurrent delete from two clients simultaneously converges cleanly; concurrent edits
+  to two *different* annotations don't cross-contaminate
+**QC-35 — Workspace model: a workspace = a set of URLs or a domain** *(Story, M)* — **Done**
+- Implementation: `extension/src/storage/workspace.js` — domain-scoped (exact hostname match,
+  subdomains deliberately NOT auto-included — a stated v1 simplicity choice) and urlList-scoped
+  (explicit set of normalized URLs, reusing QC-12's `normalizeUrl`) workspaces; a page can match
+  multiple workspaces at once, sorted most-specific-first
+- `deriveRoomId(workspace)` connects this model to the sync layer built in QC-30–34 — this is
+  what the hardcoded test room strings used throughout that work will be replaced with in real
+  usage
+- Tests: `extension/test/workspace.test.js` (15/15 passing)
+**QC-36 — Basic invite flow (share a link, join a workspace)** *(Story, M)* — **Done**
+- Implementation: `extension/src/crypto/invite.js` — ties QC-3's fragment-based key exchange
+  to QC-35's workspace model: key stays in the URL fragment (never touches a server), while
+  workspace identity and scope (domain vs. url list) go in the path/query since that metadata
+  isn't secret the same way the key is, and the joining client genuinely needs it to know which
+  pages should activate the workspace
+- Critically, the invite carries the inviter's EXACT workspace id, not a freshly generated one
+  — verified directly: `deriveRoomId()` produces an identical room id on both sides, meaning
+  they actually land in the same sync room rather than each being alone in their own
+- Tests: `extension/test/invite.test.js` (12/12 passing) — covers both domain and urlList
+  (array-valued, the harder encoding case) workspace round-trips, plus malformed-link handling
 **QC-37 — Relay persistence (durable storage for offline clients to catch up on reconnect)** *(Story, M)*
 
 **Phase 2 exit criteria:** two people on the same workspace see each other's annotations
