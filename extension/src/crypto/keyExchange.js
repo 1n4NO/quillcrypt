@@ -1,5 +1,5 @@
 'use strict';
-const sodium = require('libsodium-wrappers');
+const primitives = require('./primitives');
 
 /**
  * Invite-link key exchange.
@@ -15,20 +15,27 @@ const sodium = require('libsodium-wrappers');
  *
  * NOTE: this handles the *initial* symmetric key generation and sharing
  * flow only. Late-joining members (added after the workspace already has a
- * key) need asymmetric key wrapping instead — see QC-44 (Phase 3).
+ * key) need asymmetric key wrapping instead — see QC-44 (Phase 3),
+ * implemented in `primitives.js`.
+ *
+ * As of QC-40/41/43 (Phase 3), key generation/encoding here delegates to
+ * `primitives.js` rather than calling sodium directly — this file's own
+ * exported names are unchanged (nothing downstream, e.g. invite.js, needed
+ * to change), but there's now exactly one place all crypto primitives are
+ * actually implemented.
  */
 
 async function generateWorkspaceKey() {
-  await sodium.ready;
-  return sodium.crypto_secretbox_keygen();
+  await primitives.ready();
+  return primitives.generateSymmetricKey();
 }
 
 function encodeKey(key) {
-  return sodium.to_base64(key, sodium.base64_variants.URLSAFE_NO_PADDING);
+  return primitives.encodeKey(key);
 }
 
 function decodeKey(encoded) {
-  return sodium.from_base64(encoded, sodium.base64_variants.URLSAFE_NO_PADDING);
+  return primitives.decodeKey(encoded);
 }
 
 function buildInviteLink(origin, workspaceId, key) {

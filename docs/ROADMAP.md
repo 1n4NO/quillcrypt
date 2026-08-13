@@ -274,7 +274,39 @@ not been performed — everything else has been built and automated-tested.**
   they actually land in the same sync room rather than each being alone in their own
 - Tests: `extension/test/invite.test.js` (12/12 passing) — covers both domain and urlList
   (array-valued, the harder encoding case) workspace round-trips, plus malformed-link handling
-**QC-37 — Relay persistence (durable storage for offline clients to catch up on reconnect)** *(Story, M)*
+**QC-37 — Relay persistence (durable storage for offline clients to catch up on reconnect)** *(Story, M)* — **Done**
+- This is the ticket that actually delivers Phase 2's exit criterion — QC-32 explicitly could
+  NOT guarantee catching up on updates other clients made while you were offline; this closes
+  that gap
+- Implementation: `relay-server/src/persistentRelay.js` — per-room update log, replayed to any
+  newly-connecting client (reconnecting OR joining for the first time ever); periodic
+  compaction via `Y.mergeUpdates()` once a room's log exceeds a threshold, keeping the relay
+  blind throughout (compaction operates on opaque update bytes, never decoded content)
+- `relay-server/src/index.js` updated to run the persistent relay in production (the
+  non-persistent `relay.js` from QC-31 remains available and independently tested as a
+  building block, just no longer what actually gets deployed)
+- **Stated limitation:** persistence is IN-MEMORY only — survives client disconnects within
+  one relay process lifetime, but a relay restart loses all room history. True
+  across-restart durability needs a real disk/database-backed store, which is separate,
+  larger infrastructure work not attempted here.
+- Tests: `extension/test/relayPersistence.test.js` (4/4 passing) — the two that matter most: a
+  client that was NEVER online while another client made edits still catches up purely from
+  relay history, and a reconnecting client picks up an annotation added by someone else while
+  it was offline (the exact scenario QC-32 flagged as unsolved). Also verified: compaction
+  triggers correctly and a client joining after compaction still gets fully correct state.
+- **Packaging bug caught and fixed during this ticket:** `persistentRelay.js` needs `yjs` at
+  runtime, but `relay-server/package.json` only listed `yjs` as a devDependency (left over from
+  when only tests needed it). Running the real cross-package verification surfaced a
+  `MODULE_NOT_FOUND` error that a mocked test would never have caught — moved to a proper
+  `dependency`. Also surfaced: a `"Yjs was already imported"` warning, because `extension/`
+  and `relay-server/` are separate packages each with their own `yjs` install. Tests still pass
+  (nothing here relies on cross-instance `instanceof` checks), but this is worth fixing
+  properly — **recommend converting to npm/yarn workspaces** so the whole project shares one
+  `yjs` install, before this duplicate-instance issue causes a harder-to-diagnose bug later.
+
+**Phase 2 status: all eight tickets done.** Run everything with `cd extension && npm test`
+(the extension suite includes cross-package tests against the real relay) and separately
+`cd relay-server && npm test`.
 
 **Phase 2 exit criteria:** two people on the same workspace see each other's annotations
 appear live, and a client that reconnects after being offline catches up correctly. Content is
@@ -287,17 +319,107 @@ still plaintext on the relay at this point — **do not use on real/sensitive pa
 **Goal:** the relay becomes provably blind. This phase gates the "E2EE" claim in your
 marketing — don't ship Phase 4 messaging before this is done.
 
-**QC-40 — libsodium integration & key primitives wrapper** *(Task, M)*
-**QC-41 — Workspace symmetric key generation** *(Story, S)*
-**QC-42 — Encrypt/decrypt Yjs updates at the sync boundary** *(Story, L)*
-- AC: relay process memory/logs never contain plaintext (automated test, not just manual check)
-**QC-43 — Invite link key exchange (key in URL fragment)** *(Story, M)* — builds on QC-3
-**QC-44 — Asymmetric key wrapping for late-joining members (X25519)** *(Story, L)*
-- AC: existing member can add a new member without sharing the raw group key out-of-band
-**QC-45 — Key rotation on member removal** *(Story, M)*
-**QC-46 — Local key storage & device management (what happens on lost device)** *(Story, M)*
-- AC: documented, user-facing explanation of the recovery tradeoff (no recovery vs. escrow)
-**QC-47 — Security review / external audit scoping doc** *(Task, S)*
+**QC-40 — libsodium integration & key primitives wrapper** *(Task, M)* — **Done**
+- Implementation: `extension/src/crypto/primitives.js` — consolidates ALL sodium calls into one
+  module (previously scattered between the QC-2/QC-3 spikes): symmetric encrypt/decrypt for the
+  workspace group key, and asymmetric sealed-box wrap/unwrap for member key delivery (QC-44)
+- `extension/src/crypto/keyExchange.js` (QC-3/QC-43) refactored to delegate here rather than
+  calling sodium directly — verified its exact public API is unchanged by re-running BOTH
+  dependent test suites (`keyExchange.test.js` and `invite.test.js`, 18 tests combined) against
+  the refactored version before considering this done
+- Tests: `extension/test/primitives.test.js` (5/5 passing) — includes wrong-key failure cases
+  for both symmetric and asymmetric primitives, not just the happy path
+
+**QC-41 — Workspace symmetric key generation** *(Story, S)* — **Done**
+- Already implemented as `generateWorkspaceKey()` in QC-3's `keyExchange.js`; as of QC-40 it
+  delegates to `primitives.generateSymmetricKey()`. No new code needed beyond the QC-40
+  consolidation — marking done here since the AC is fully met and tested.
+
+**QC-42 — Encrypt/decrypt Yjs updates at the sync boundary** *(Story, L)* — **Done**
+- AC: relay process memory/logs never contain plaintext (automated test, not just manual check) ✅
+- Implementation: `extension/src/sync/encryptedTransport.js` — **deliberately does NOT modify
+  `SyncClient` (QC-32) at all.** It's a drop-in replacement for the `WebSocketImpl` option
+  SyncClient already accepted, so encryption is completely transparent: SyncClient still just
+  sees "bytes in, bytes out" over something WebSocket-shaped, meaning every one of SyncClient's
+  existing tests (reconnect, offline queue, echo prevention) remains valid completely unchanged
+- Tests: `extension/test/encryptedSync.test.js` (6/6 passing) — this is the load-bearing test
+  for the whole product's core claim. It verifies against the relay's actual **persisted**
+  storage (not just live traffic) two ways: a byte-subsequence search proving the known
+  plaintext note content never appears anywhere in what's stored, AND a structural check that
+  stored entries don't even parse as valid Yjs updates (`Y.decodeUpdate` throws on all of
+  them) — so it's not just that the bytes differ, it's that what's stored isn't a CRDT delta
+  at all, it's ciphertext. Also verified: a client with the wrong key gets decrypt errors
+  (via an `onDecryptError` hook) rather than crashing, and ends up with zero annotation data.
+- **Two real bugs caught and fixed during this ticket, both the same class of mistake:**
+  1. `encryptedTransport.js` was written with `require('./primitives')`, copied from a spike
+     where both files sat in the same flat directory — but in the real project structure,
+     `primitives.js` lives in `../crypto/`, not the same `sync/` folder. The cross-package
+     verification caught this immediately (`MODULE_NOT_FOUND`); a test that only ran inside
+     the spike sandbox never would have.
+  2. `libsodium-wrappers` was listed as a *dev* dependency in `extension/package.json`, but
+     `primitives.js`/`keyExchange.js`/`invite.js` are all production source code that need it
+     at runtime — the identical mistake QC-37 already caught once in `relay-server`. Caught
+     proactively this time before shipping, by checking for the same pattern rather than
+     waiting for it to fail again.
+
+**QC-43 — Invite link key exchange (key in URL fragment)** *(Story, M)* — **Done** (builds on QC-3)
+- Fully implemented already via QC-3 (`keyExchange.js`) + QC-36 (`invite.js`, which layers
+  workspace identity/scope on top of the QC-3 mechanism). No additional ticket-specific work
+  needed — marking done here since the AC (key exchange via URL fragment) has been implemented
+  and tested since QC-3/QC-36, this ticket just formally closes that loop in the Phase 3 list.
+
+**QC-44 — Asymmetric key wrapping for late-joining members (X25519)** *(Story, L)* — **Done**
+- AC: existing member can add a new member without sharing the raw group key out-of-band ✅
+- Implementation: `extension/src/crypto/membership.js` — a `MemberRoster` (pluggable backend,
+  same pattern as `AnnotationStore`) tracking members by public key, plus
+  `createMemberInvite()`/`acceptMemberInvite()` built on QC-40's sealed-box primitives
+- Key property verified directly: the wrapped payload is safe to transmit over ANY channel
+  (including the blind relay itself) since it's ciphertext only the intended recipient's
+  private key can open — no separate secure out-of-band channel needed, unlike the initial-join
+  fragment approach's implicit reliance on the invite link being shared carefully
+- Tests: `extension/test/membership.test.js` (6/6 passing) — round-trip recovery of the exact
+  group key, confirmation the wrapped payload doesn't contain the raw key bytes verbatim, and
+  confirmation someone the invite was NOT wrapped for cannot unwrap it
+
+**QC-45 — Key rotation on member removal** *(Story, M)* — **Done**
+- Implementation: `extension/src/crypto/rotation.js` — generates a fresh group key on member
+  removal and wraps it individually for every REMAINING member via QC-44's primitives; the
+  removed member is simply excluded from the wrap list
+- **Stated limitation, not a bug:** no forward secrecy for content the removed member already
+  decrypted before removal — rotation only prevents reading anything encrypted with the NEW
+  key going forward. This is the standard tradeoff for "wrap a shared key per member" designs;
+  true forward secrecy (Signal-style ratcheting) is meaningfully heavier and out of scope.
+- Tests: `extension/test/rotation.test.js` (7/7 passing) — confirms the new key differs from
+  the old one, remaining members correctly recover it, and critically: the removed member's
+  keypair cannot unwrap ANY of the newly-wrapped entries, not just their own former one
+
+**QC-46 — Local key storage & device management (what happens on lost device)** *(Story, M)* — **Done**
+- AC: documented, user-facing explanation of the recovery tradeoff (no recovery vs. escrow) ✅
+- Implementation: `extension/src/crypto/keyStore.js` — pluggable-backend storage (same pattern
+  as `AnnotationStore`) for the device's own keypair and every joined workspace's group key
+- Tests: `extension/test/keyStore.test.js` (7/7 passing) — includes a genuine simulation of
+  device loss (a fresh `KeyStore` over a brand-new empty backend, not sharing the old one),
+  proving the tradeoff is real and testable, not just claimed in prose
+- **The actual AC deliverable:** `docs/KEY_RECOVERY.md` — plain-language, user-facing
+  explanation of why there's no recovery mechanism, what happens concretely if a device is
+  lost, what the user can do about it (export backups, keep a second active member), and an
+  explicit statement of what's NOT planned (key escrow) and why
+
+**QC-47 — Security review / external audit scoping doc** *(Task, S)* — **Done**
+- Implementation: `docs/SECURITY_AUDIT_SCOPE.md` — scopes an external audit to the ~15% of the
+  codebase where a bug would actually break the E2EE claim (crypto primitives usage, the sync
+  boundary, key derivation/randomness, and the content-script attack surface specifically,
+  since it runs inside untrusted pages by design), explicitly excludes what's not this
+  product's responsibility to audit (browser sandbox, libsodium internals, physical device
+  security), and flags the duplicate-`yjs`-install issue (from QC-37/42) as worth resolving
+  before the audit rather than during it
+- This is a scoping document, not the audit itself — an actual external review is still a
+  prerequisite before the public-facing E2EE claim should be considered fully verified
+
+**Phase 3 status: all eight tickets done.** Run everything with `cd extension && npm test`.
+The core promise is now automated-tested against real persisted relay storage (QC-42), not
+just asserted — but per QC-47, an actual external audit is still the right bar before
+publicly making this claim without qualification.
 
 **Phase 3 exit criteria:** an outside party with full access to the relay server and its
 database cannot recover any annotation content — verified by an automated test that inspects

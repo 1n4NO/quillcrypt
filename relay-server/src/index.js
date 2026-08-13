@@ -1,14 +1,20 @@
 'use strict';
-const { startRelay } = require('./relay');
+const { startPersistentRelay } = require('./persistentRelay');
 
-// Blind WebSocket relay entry point.
+// Production relay entry point — uses the persistent relay (QC-37), which
+// remembers each room's update history so clients catch up correctly on
+// reconnect, on top of the blind-relay guarantees from QC-31/QC-2.
 //
-// By design this process should NEVER decrypt or inspect message payloads —
-// it only forwards opaque binary blobs between clients in the same workspace
-// (room). See docs/spikes/QC-2-encrypted-relay.md for the spike that proved
-// this works end-to-end with encrypted Yjs updates, and QC-42 (Phase 3) for
-// the automated test that will enforce blindness in CI.
+// NOTE: persistence here is in-memory only — it survives client
+// disconnect/reconnect within one relay process lifetime, but a relay
+// restart loses room history. True across-restart durability needs a real
+// disk/database-backed store, which is out of scope for this phase.
+//
+// The non-persistent relay (relay.js, QC-31) remains available and tested
+// separately — it's still the right building block for anything that
+// doesn't need catch-up history (or a future variant with a different
+// persistence backend).
 
 const PORT = process.env.PORT || 8123;
-startRelay(PORT);
-console.log(`Quillcrypt relay listening on ws://localhost:${PORT}`);
+startPersistentRelay(PORT);
+console.log(`Quillcrypt relay (with persistence) listening on ws://localhost:${PORT}`);

@@ -2,7 +2,7 @@
   "name": "quillcrypt-relay",
   "version": "0.1.0",
   "private": true,
-  "description": "Thin, blind WebSocket relay for encrypted Quillcrypt CRDT updates.",
+  "description": "Thin, blind WebSocket relay for encrypted Quillcrypt CRDT updates, with per-room persistence for reconnect catch-up.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -10,10 +10,10 @@
     "test": "node test/relay.test.js && node test/relayHardening.test.js"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "yjs": "^13.6.18"
   },
   "devDependencies": {
-    "yjs": "^13.6.18",
     "libsodium-wrappers": "^0.7.13"
   }
 }
