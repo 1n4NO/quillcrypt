@@ -432,16 +432,55 @@ relay-side storage/logs for plaintext, not just a manual check.
 **Goal:** the features that make this a team tool, built so they never break the encryption
 boundary from Phase 3.
 
-**QC-50 — Metadata-only event stream (what's safe to expose: URL hash, timestamp, author id)** *(Task, M)*
-**QC-51 — Slack notification integration (metadata-only)** *(Story, M)*
-**QC-52 — Generic webhook integration** *(Story, M)*
-**QC-53 — Export annotations (decrypted, local, user-initiated)** *(Story, S)*
-**QC-54 — Workspace member management UI** *(Story, M)*
-**QC-55 — Per-domain vs. per-URL workspace scoping UI** *(Story, S)*
+**QC-50 — Metadata-only event stream (what's safe to expose: URL hash, timestamp, author id)** *(Task, M)* — **Done**
+- Implementation: `extension/src/integrations/eventStream.js` — a strict whitelist
+  (`EVENT_ALLOWED_KEYS`) enforced via `assertMetadataOnly()`, which every emitted event is
+  self-checked against before it's ever handed to a listener. Diffs `AnnotationYDoc` state to
+  detect add/update/delete, since `observeDeep` alone only reports "something changed"
+- Tests: `extension/test/eventStream.test.js` (10/10 passing) — the strongest test confirms a
+  known sensitive content string never appears anywhere in the serialized event stream, not
+  just that a `content` key is absent
+
+**QC-51 — Slack notification integration (metadata-only)** *(Story, M)* — **Done**
+**QC-52 — Generic webhook integration** *(Story, M)* — **Done**
+- Both independently re-validate `assertMetadataOnly()` before ever making a network call —
+  defense in depth on top of QC-50's guarantee, so a future bug elsewhere can't leak content
+  through either integration specifically
+- Implementation: `extension/src/integrations/slackIntegration.js`,
+  `.../webhookIntegration.js`. `fetchImpl` is injectable (same pattern as `WebSocketImpl`
+  throughout this project) so both are tested without live network calls.
+- Tests: `extension/test/integrations.test.js` (14/14 passing) — for both integrations,
+  confirms not just that a valid event sends correctly, but that a leaky (non-whitelisted)
+  event is rejected and results in **zero** network calls, verified by asserting the injected
+  fetch mock was never invoked
+
+**QC-53 — Export annotations (decrypted, local, user-initiated)** *(Story, S)* — **Done**
+- Deliberate contrast with QC-50–52: export is local-only and never transmitted by this code,
+  so it includes FULL content by design — the opposite restriction from the integrations above
+- Implementation: `extension/src/models/exportAnnotations.js` — versioned JSON export/import
+  (round-trippable) and human-readable Markdown export
+- Tests: `extension/test/exportAnnotations.test.js` (11/11 passing)
+
+**QC-54 — Workspace member management UI** *(Story, M)* — **Done**
+- Same precedent as QC-20's toolbar: this is the state/controller layer a management UI would
+  sit on top of, not DOM rendering (not meaningfully unit-testable)
+- Implementation: `extension/src/crypto/memberManagement.js` — adds display names on top of
+  QC-44's `MemberRoster`, plus a Signal-style grouped-hex key fingerprint for UI display;
+  removing a member always triggers QC-45's rotation
+- Tests combined with QC-55 below
+
+**QC-55 — Per-domain vs. per-URL workspace scoping UI** *(Story, S)* — **Done**
+- Implementation: `extension/src/storage/scopingHelper.js` — computes the two scope choices
+  ("just this page" vs. "this whole domain") a creation UI would offer, and safely grows an
+  existing urlList workspace's scope without duplicating an already-covered page
+- QC-54/55 tests combined: `extension/test/memberManagementAndScoping.test.js` (16/16 passing)
+
+**Phase 4 status: all six tickets done.** Run everything with `cd extension && npm test`.
 
 **Phase 4 exit criteria:** a Slack notification fires when someone annotates a shared page,
 built entirely from encrypted-metadata events — confirm no integration code path ever touches
-decrypted content.
+decrypted content. **Met**: QC-51's tests confirm not just that valid metadata sends correctly,
+but that a non-whitelisted event triggers zero network calls, verified directly.
 
 ---
 
