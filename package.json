@@ -1,0 +1,15 @@
+{
+  "name": "quillcrypt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Collaborative, end-to-end encrypted web annotation — monorepo root.",
+  "workspaces": [
+    "extension",
+    "relay-server"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace=extension && npm run test --workspace=relay-server",
+    "test:extension": "npm run test --workspace=extension",
+    "test:relay": "npm run test --workspace=relay-server"
+  }
+}
