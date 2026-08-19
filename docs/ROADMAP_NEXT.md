@@ -277,6 +277,11 @@ Goal: turn the tested sync and crypto modules into an intentional user flow.
 
 **Depends on:** QC-NEXT-021.
 
+**Status:** file-backed persistence is implemented behind `RELAY_DATA_PATH`. Room histories
+are loaded at startup and atomically replaced after each opaque update/compaction; unset
+configuration retains in-memory development mode. Database-backed retention limits and backup
+operations remain future hardening work.
+
 ### QC-NEXT-023 - Relay production hardening *(Task, M)*
 
 **Problem:** the relay has room isolation and peer-failure tests but no production contract for

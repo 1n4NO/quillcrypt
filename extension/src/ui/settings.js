@@ -87,6 +87,21 @@ class SettingsController {
     throw new Error(`Unknown export format: ${format}`);
   }
 
+  async getRelayUrl() {
+    return this.pageContext.relayUrl || await this.pageContext.configBackend?.getRelayUrl() || '';
+  }
+
+  async setRelayUrl(value) {
+    const normalized = typeof value === 'string' ? value.trim().replace(/\/$/, '') : '';
+    if (normalized && !/^wss?:\/\//i.test(normalized)) throw new Error('Relay URL must start with ws:// or wss://');
+    if (normalized) {
+      try { new URL(normalized); } catch { throw new Error('Relay URL is invalid'); }
+    }
+    if (this.pageContext.configBackend) await this.pageContext.configBackend.setRelayUrl(normalized);
+    this.pageContext.relayUrl = normalized;
+    return normalized;
+  }
+
   async createWorkspaceForPage({ name, scopeType, origin = 'https://app.quillcrypt.dev' }) {
     const { createWorkspace } = require('../storage/workspace');
     const { buildScopeOptions } = require('../storage/scopingHelper');
@@ -116,6 +131,7 @@ class SettingsController {
     }
     await this.workspaceRegistry.addWorkspace(invite.workspace);
     await this.keyStore.storeWorkspaceKey(invite.workspace.id, invite.key);
+    await this.pageContext.onWorkspaceAccepted?.(invite.workspace, invite.key);
     return invite.workspace;
   }
 }

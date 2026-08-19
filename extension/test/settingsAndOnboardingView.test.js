@@ -47,6 +47,20 @@ async function main() {
   const created = await controller.createWorkspaceForPage({ name: 'New review', scopeType: 'urlList' });
   check('settings: creates a workspace for the active page', created.workspace.scopeValue[0] === 'https://example.com/article');
   check('settings: generated invite keeps the key in the URL fragment', new URL(created.inviteLink).hash.startsWith('#key='));
+  const joined = new SettingsController(new KeyStore(), new WorkspaceRegistry(), { url: 'https://example.com/article' });
+  const accepted = await joined.acceptInvite(created.inviteLink);
+  check('settings: accepts an invite with the original workspace identity', accepted.id === created.workspace.id);
+  check('settings: accepted invite stores a usable local key', (await joined.keyStore.getWorkspaceKey(accepted.id)) !== null);
+  let duplicateRejected = false;
+  try { await joined.acceptInvite(created.inviteLink); } catch { duplicateRejected = true; }
+  check('settings: duplicate invite is rejected clearly', duplicateRejected);
+  const config = { value: '', async getRelayUrl() { return this.value; }, async setRelayUrl(value) { this.value = value; } };
+  const configured = new SettingsController(new KeyStore(), new WorkspaceRegistry(), { configBackend: config });
+  await configured.setRelayUrl('wss://relay.example.com/');
+  check('settings: relay URL is normalized before storage', (await configured.getRelayUrl()) === 'wss://relay.example.com');
+  let invalidRelayRejected = false;
+  try { await configured.setRelayUrl('https://relay.example.com'); } catch { invalidRelayRejected = true; }
+  check('settings: non-WebSocket relay URL is rejected', invalidRelayRejected);
 
   const leaveButton = ws1Row.querySelector('.qc-settings-leave');
   leaveButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));

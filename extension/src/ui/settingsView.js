@@ -84,6 +84,42 @@ async function mountSettings(container, settingsController) {
   workspaceSection.append(nameInput, scopeSelect, createButton, createStatus);
   root.appendChild(workspaceSection);
 
+  const joinSection = doc.createElement('section');
+  joinSection.className = 'qc-settings-workspace-join';
+  const joinHeading = doc.createElement('h3');
+  joinHeading.textContent = 'Join a workspace';
+  const inviteInput = doc.createElement('input');
+  inviteInput.type = 'url'; inviteInput.placeholder = 'Paste an invite link'; inviteInput.setAttribute('aria-label', 'Workspace invite link');
+  const joinButton = doc.createElement('button');
+  joinButton.type = 'button'; joinButton.textContent = 'Join';
+  const joinStatus = doc.createElement('p');
+  joinStatus.className = 'qc-settings-join-status'; joinStatus.setAttribute('role', 'status');
+  joinButton.addEventListener('click', async () => {
+    try {
+      const workspace = await settingsController.acceptInvite(inviteInput.value);
+      joinStatus.textContent = `Joined “${workspace.name}”.`;
+      inviteInput.value = '';
+      await render();
+    } catch (error) { joinStatus.textContent = error.message; }
+  });
+  joinSection.append(joinHeading, inviteInput, joinButton, joinStatus);
+  root.appendChild(joinSection);
+
+  const relaySection = doc.createElement('section');
+  relaySection.className = 'qc-settings-relay';
+  const relayHeading = doc.createElement('h3'); relayHeading.textContent = 'Encrypted relay';
+  const relayInput = doc.createElement('input');
+  relayInput.type = 'url'; relayInput.placeholder = 'wss://relay.example.com'; relayInput.setAttribute('aria-label', 'Encrypted relay URL');
+  relayInput.value = await settingsController.getRelayUrl();
+  const relayButton = doc.createElement('button'); relayButton.type = 'button'; relayButton.textContent = 'Save relay';
+  const relayStatus = doc.createElement('p'); relayStatus.className = 'qc-settings-relay-status'; relayStatus.setAttribute('role', 'status');
+  relayButton.addEventListener('click', async () => {
+    try { await settingsController.setRelayUrl(relayInput.value); relayStatus.textContent = 'Relay URL saved. Reload the page to reconnect.'; }
+    catch (error) { relayStatus.textContent = error.message; }
+  });
+  relaySection.append(relayHeading, relayInput, relayButton, relayStatus);
+  root.appendChild(relaySection);
+
   const list = doc.createElement('ul');
   list.className = 'qc-settings-list';
   root.appendChild(list);

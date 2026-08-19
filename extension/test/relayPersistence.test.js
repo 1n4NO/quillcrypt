@@ -1,6 +1,9 @@
 'use strict';
 const Y = require('yjs');
 const WebSocket = require('ws');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { startPersistentRelay } = require('../../relay-server/src/persistentRelay');
 const { SyncClient } = require('../src/sync/syncClient');
 const { AnnotationYDoc } = require('../src/sync/annotationYDoc');
@@ -100,6 +103,31 @@ async function main() {
   syncC.disconnect();
   syncD.disconnect();
   relay.close();
+
+  // Restart durability: the same opaque history is available to a fresh
+  // relay instance, without decoding or inspecting the payload.
+  const durablePath = path.join(os.tmpdir(), `quillcrypt-relay-${process.pid}.json`);
+  try { fs.unlinkSync(durablePath); } catch {}
+  const durablePort = 8135;
+  const firstRelay = startPersistentRelay(durablePort, { persistencePath: durablePath });
+  const firstClient = new WebSocket(`ws://localhost:${durablePort}?room=restart-test`);
+  await new Promise((resolve) => firstClient.once('open', resolve));
+  const opaquePayload = Buffer.from([0, 255, 18, 42]);
+  firstClient.send(opaquePayload);
+  await wait(50);
+  firstClient.close();
+  await new Promise((resolve) => firstRelay.wss.close(resolve));
+
+  const secondRelay = startPersistentRelay(durablePort, { persistencePath: durablePath });
+  const secondClient = new WebSocket(`ws://localhost:${durablePort}?room=restart-test`);
+  const replayed = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('durable replay timed out')), 2000);
+    secondClient.once('message', (data) => { clearTimeout(timer); resolve(Buffer.from(data)); });
+  });
+  check('relay history survives a process restart', replayed.equals(opaquePayload));
+  secondClient.close();
+  await new Promise((resolve) => secondRelay.wss.close(resolve));
+  try { fs.unlinkSync(durablePath); } catch {}
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);

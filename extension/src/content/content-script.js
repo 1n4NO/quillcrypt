@@ -50,12 +50,16 @@ async function mount(doc, win, storageArea, options = {}) {
   const failedToRender = [];
   const registry = new WorkspaceRegistry(new WebExtensionWorkspaceRegistryBackend(storageArea));
   const keyStore = new KeyStore(new WebExtensionStorageBackend('keys', storageArea));
+  const configBackend = new WebExtensionConfigBackend(storageArea);
+  const configuredRelayUrl = options.relayUrl || await configBackend.getRelayUrl();
   const settingsController = new SettingsController(keyStore, registry, {
     url,
     pageTitle: doc.title,
     getAnnotations: () => currentAnnotations,
+    onWorkspaceAccepted: (acceptedWorkspace, acceptedKey) => activateWorkspace(acceptedWorkspace, acceptedKey),
+    configBackend,
+    relayUrl: configuredRelayUrl,
   });
-  const configuredRelayUrl = options.relayUrl || await new WebExtensionConfigBackend(storageArea).getRelayUrl();
   const workspaces = await registry.listWorkspaces();
   // Resolve the first matching unlocked workspace explicitly.
   let workspace = null;
@@ -67,7 +71,7 @@ async function mount(doc, win, storageArea, options = {}) {
     }
   }
 
-  const session = workspace && workspaceKey
+  let session = workspace && workspaceKey
     ? new WorkspaceSession(workspace, workspaceKey, configuredRelayUrl, options)
     : null;
   const rendered = new Map();
@@ -76,6 +80,14 @@ async function mount(doc, win, storageArea, options = {}) {
   let currentAnnotations = existing.slice();
   let settingsDispose = null;
   let settingsOpening = null;
+
+  function activateWorkspace(acceptedWorkspace, acceptedKey) {
+    if (!configuredRelayUrl) return;
+    session?.dispose();
+    session = new WorkspaceSession(acceptedWorkspace, acceptedKey, configuredRelayUrl, options);
+    for (const annotation of currentAnnotations) session.addAnnotation(annotation);
+    session.onAnnotationsChange(renderCurrentAnnotations);
+  }
 
   function renderCurrentAnnotations(annotations) {
     currentAnnotations = annotations.slice();

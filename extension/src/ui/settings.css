@@ -112,8 +112,19 @@
 .qc-settings-workspace-create h3 { font-size: 13px; margin: 0 0 8px; }
 .qc-settings-workspace-create input,
 .qc-settings-workspace-create select,
-.qc-settings-workspace-create button { margin: 0 6px 6px 0; padding: 6px 8px; }
+.qc-settings-workspace-create button,
+.qc-settings-workspace-join input,
+.qc-settings-workspace-join button { margin: 0 6px 6px 0; padding: 6px 8px; }
 .qc-settings-create-status { margin: 4px 0 0; font-size: 11px; overflow-wrap: anywhere; color: #6b6559; }
+
+.qc-settings-workspace-join { margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid #e5e0d4; }
+.qc-settings-workspace-join h3 { font-size: 13px; margin: 0 0 8px; }
+.qc-settings-join-status { margin: 4px 0 0; font-size: 11px; overflow-wrap: anywhere; color: #6b6559; }
+
+.qc-settings-relay { margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid #e5e0d4; }
+.qc-settings-relay h3 { font-size: 13px; margin: 0 0 8px; }
+.qc-settings-relay input, .qc-settings-relay button { margin: 0 6px 6px 0; padding: 6px 8px; }
+.qc-settings-relay-status { margin: 4px 0 0; font-size: 11px; color: #6b6559; }
 
 .qc-settings-export h3 {
   font-size: 13px;

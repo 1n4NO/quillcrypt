@@ -1,6 +1,8 @@
 'use strict';
 const WebSocket = require('ws');
 const Y = require('yjs');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Relay with persistence (QC-37). Extends the QC-31 blind relay so a room
@@ -12,14 +14,6 @@ const Y = require('yjs');
  * you were gone. With this, you do — and a client that's never connected
  * before catches up on full history too, not just reconnecting ones.
  *
- * IMPORTANT LIMITATION, stated plainly: this is IN-MEMORY persistence only.
- * It survives client disconnects/reconnects within one continuous relay
- * process lifetime, but a relay restart loses everything. True
- * across-restart durability needs a real disk/database-backed store — out
- * of scope here; this satisfies the ticket's stated goal ("offline clients
- * catch up on reconnect") without solving relay-crash recovery, which
- * would be a separate, larger piece of infrastructure work.
- *
  * The relay still never decodes update content — compaction uses
  * Y.mergeUpdates(), which operates on opaque Yjs update byte arrays without
  * needing to know what's inside them. Blindness is preserved.
@@ -29,9 +23,22 @@ const COMPACTION_THRESHOLD = 50; // merge the log once it grows past this many e
 
 function startPersistentRelay(port, options = {}) {
   const compactionThreshold = options.compactionThreshold ?? COMPACTION_THRESHOLD;
+  const persistencePath = options.persistencePath || null;
   const wss = new WebSocket.Server({ port });
   const rooms = new Map(); // roomId -> Set<ws>
-  const roomLogs = new Map(); // roomId -> Buffer[] (stored update history)
+  const roomLogs = loadRoomLogs(persistencePath);
+
+  function persistRoomLogs() {
+    if (!persistencePath) return;
+    const payload = Object.fromEntries([...roomLogs.entries()].map(([roomId, log]) => [
+      roomId, log.map((update) => Buffer.from(update).toString('base64')),
+    ]));
+    const directory = path.dirname(persistencePath);
+    fs.mkdirSync(directory, { recursive: true });
+    const temporaryPath = `${persistencePath}.tmp`;
+    fs.writeFileSync(temporaryPath, JSON.stringify({ version: 1, rooms: payload }), 'utf8');
+    fs.renameSync(temporaryPath, persistencePath);
+  }
 
   function appendAndMaybeCompact(roomId, data) {
     const log = roomLogs.get(roomId) || [];
@@ -42,6 +49,7 @@ function startPersistentRelay(port, options = {}) {
     } else {
       roomLogs.set(roomId, log);
     }
+    persistRoomLogs();
   }
 
   wss.on('connection', (ws, req) => {
@@ -58,6 +66,7 @@ function startPersistentRelay(port, options = {}) {
 
     ws.on('message', (data) => {
       const room = rooms.get(roomId);
+      appendAndMaybeCompact(roomId, data);
       if (room) {
         for (const peer of room) {
           if (peer === ws || peer.readyState !== WebSocket.OPEN) continue;
@@ -68,7 +77,6 @@ function startPersistentRelay(port, options = {}) {
           }
         }
       }
-      appendAndMaybeCompact(roomId, data);
     });
 
     ws.on('close', () => {
@@ -94,6 +102,23 @@ function startPersistentRelay(port, options = {}) {
     // client code.
     _debugGetRoomLog: (roomId) => (roomLogs.get(roomId) || []).map((buf) => new Uint8Array(buf)),
   };
+}
+
+function loadRoomLogs(persistencePath) {
+  if (!persistencePath || !fs.existsSync(persistencePath)) return new Map();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(persistencePath, 'utf8'));
+    if (parsed.version !== 1 || !parsed.rooms || typeof parsed.rooms !== 'object') return new Map();
+    return new Map(Object.entries(parsed.rooms).map(([roomId, updates]) => [
+      roomId,
+      Array.isArray(updates) ? updates.map((encoded) => Buffer.from(encoded, 'base64')) : [],
+    ]));
+  } catch {
+    // A corrupt or partially-written history must not prevent the relay from
+    // starting. Atomic replacement means this should only happen after manual
+    // tampering or a filesystem failure; the relay starts empty and can rebuild.
+    return new Map();
+  }
 }
 
 module.exports = { startPersistentRelay };
