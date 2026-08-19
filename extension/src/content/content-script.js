@@ -9,7 +9,8 @@ const {
   WebExtensionConfigBackend,
 } = require('../storage/webExtensionStorage');
 const { KeyStore } = require('../crypto/keyStore');
-const { WorkspaceRegistry } = require('../ui/settings');
+const { WorkspaceRegistry, SettingsController } = require('../ui/settings');
+const { mountSettings } = require('../ui/settingsView');
 const { findWorkspacesForUrl } = require('../storage/workspace');
 const { WorkspaceSession } = require('../sync/workspaceSession');
 const { ToolbarState } = require('../ui/toolbar');
@@ -49,6 +50,7 @@ async function mount(doc, win, storageArea, options = {}) {
   const failedToRender = [];
   const registry = new WorkspaceRegistry(new WebExtensionWorkspaceRegistryBackend(storageArea));
   const keyStore = new KeyStore(new WebExtensionStorageBackend('keys', storageArea));
+  const settingsController = new SettingsController(keyStore, registry);
   const configuredRelayUrl = options.relayUrl || await new WebExtensionConfigBackend(storageArea).getRelayUrl();
   const workspaces = await registry.listWorkspaces();
   // Resolve the first matching unlocked workspace explicitly.
@@ -68,6 +70,8 @@ async function mount(doc, win, storageArea, options = {}) {
   let mirrorPromise = Promise.resolve();
   let sidebar = null;
   let currentAnnotations = existing.slice();
+  let settingsDispose = null;
+  let settingsOpening = null;
 
   function renderCurrentAnnotations(annotations) {
     currentAnnotations = annotations.slice();
@@ -136,6 +140,40 @@ async function mount(doc, win, storageArea, options = {}) {
   });
   doc.body.appendChild(sidebarHost);
 
+  const settingsHost = doc.createElement('div');
+  settingsHost.className = 'qc-settings-host';
+  settingsHost.style.position = 'fixed';
+  settingsHost.style.top = '16px';
+  settingsHost.style.left = '16px';
+  settingsHost.style.zIndex = '2147483647';
+  settingsHost.style.maxWidth = 'min(480px, calc(100vw - 32px))';
+  settingsHost.style.maxHeight = 'calc(100vh - 32px)';
+  settingsHost.style.overflow = 'auto';
+  settingsHost.hidden = true;
+  doc.body.appendChild(settingsHost);
+
+  async function toggleSettings() {
+    if (settingsDispose) {
+      settingsDispose();
+      settingsDispose = null;
+      settingsHost.hidden = true;
+      return;
+    }
+    if (!settingsOpening) {
+      settingsHost.hidden = false;
+      settingsOpening = mountSettings(settingsHost, settingsController)
+        .then((dispose) => { settingsDispose = dispose; })
+        .finally(() => { settingsOpening = null; });
+    }
+    await settingsOpening;
+  }
+
+  const runtime = options.runtime;
+  const handleRuntimeMessage = runtime?.onMessage?.addListener
+    ? (message) => message?.type === 'QC_OPEN_SETTINGS' ? toggleSettings().then(() => ({ ok: true })) : undefined
+    : null;
+  if (handleRuntimeMessage) runtime.onMessage.addListener(handleRuntimeMessage);
+
   await onboarding.markStepComplete('install');
 
   const disposeInteractions = attachToolInteractions({
@@ -181,12 +219,16 @@ async function mount(doc, win, storageArea, options = {}) {
       disposeOverlay();
       disposeToolbar();
       disposeSidebar();
+      settingsDispose?.();
+      settingsDispose = null;
       disposeInteractions();
       disposeOnboarding();
       session?.dispose();
       toolbarHost.remove();
       onboardingHost.remove();
       sidebarHost.remove();
+      settingsHost.remove();
+      if (handleRuntimeMessage) runtime.onMessage.removeListener?.(handleRuntimeMessage);
       doc.removeEventListener('keydown', handleKeydown);
     },
   };
@@ -195,7 +237,7 @@ async function mount(doc, win, storageArea, options = {}) {
 /** Real content-script entry point: guards against double-injection, then mounts. */
 function start(doc, win, storageArea) {
   injectOnce(doc, () => {
-    mount(doc, win, storageArea);
+    mount(doc, win, storageArea, { runtime: browserApi.runtime });
   });
 }
 

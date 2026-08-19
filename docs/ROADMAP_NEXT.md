@@ -198,9 +198,10 @@ remain for the next slice.
 
 **Depends on:** QC-NEXT-013.
 
-**Status:** sidebar slice implemented. The page toolbar now opens a real, filterable annotation
-panel with anchor jumping and disposal; local and live-session updates keep its list current.
-Settings-page mounting and member/scoping controls remain.
+**Status:** sidebar and settings slices implemented. The page toolbar now opens a real, filterable
+annotation panel with anchor jumping and disposal; local and live-session updates keep its list
+current. The action-click message now opens a real settings panel backed by workspace and key
+storage. Member/scoping controls and export wiring remain.
 
 ### QC-NEXT-015 - Single-user real-browser smoke suite *(Task, M)*
 

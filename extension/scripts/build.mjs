@@ -32,6 +32,7 @@ if (chrome) {
   await cp(path.join(extensionRoot, 'src/overlay/overlay.css'), path.join(outputRoot, 'src/overlay/overlay.css'), { recursive: true });
   await mkdir(path.join(outputRoot, 'src/ui'), { recursive: true });
   await cp(path.join(extensionRoot, 'src/ui/sidebar.css'), path.join(outputRoot, 'src/ui/sidebar.css'));
+  await cp(path.join(extensionRoot, 'src/ui/settings.css'), path.join(outputRoot, 'src/ui/settings.css'));
   await cp(path.join(extensionRoot, 'icons'), path.join(outputRoot, 'icons'), { recursive: true });
   console.log(`Chrome unpacked extension ready in ${outputRoot}`);
 }
