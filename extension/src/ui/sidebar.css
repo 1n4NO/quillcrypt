@@ -1,0 +1,24 @@
+.qc-sidebar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 32px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #e5e0d4;
+  border-radius: 14px;
+  background: #fdfcf9;
+  color: #1a1a1a;
+  box-shadow: 0 18px 48px #1a1a1a26;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.qc-sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.qc-sidebar h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.qc-sidebar-close { border: 0; background: transparent; color: #6b6559; font-size: 22px; line-height: 1; cursor: pointer; }
+.qc-sidebar-search { box-sizing: border-box; width: 100%; margin: 14px 0 10px; padding: 9px 10px; border: 1px solid #d8d1c4; border-radius: 8px; background: white; color: inherit; }
+.qc-sidebar-list { display: flex; flex-direction: column; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.qc-sidebar-item { display: block; width: 100%; overflow: hidden; padding: 9px 10px; border: 1px solid #e5e0d4; border-radius: 8px; background: white; color: #38342d; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.qc-sidebar-item:hover, .qc-sidebar-item:focus-visible { border-color: #c79c26; outline: none; }
+.qc-sidebar-empty { margin: 18px 0 4px; color: #6b6559; font-size: 13px; text-align: center; }

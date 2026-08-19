@@ -14,6 +14,7 @@ const { findWorkspacesForUrl } = require('../storage/workspace');
 const { WorkspaceSession } = require('../sync/workspaceSession');
 const { ToolbarState } = require('../ui/toolbar');
 const { mountToolbar } = require('../ui/toolbarView');
+const { mountSidebar } = require('../ui/sidebarView');
 const { attachToolInteractions } = require('./toolInteractions');
 const { renderAnnotation, removeAnnotationElement } = require('./annotationRenderer');
 const { AnnotationEditController } = require('../models/editController');
@@ -65,8 +66,11 @@ async function mount(doc, win, storageArea, options = {}) {
     : null;
   const rendered = new Map();
   let mirrorPromise = Promise.resolve();
+  let sidebar = null;
+  let currentAnnotations = existing.slice();
 
   function renderCurrentAnnotations(annotations) {
+    currentAnnotations = annotations.slice();
     const next = new Map(annotations.map((annotation) => [annotation.id, annotation]));
     for (const [id, previous] of rendered) {
       if (!next.has(id) || JSON.stringify(next.get(id)) !== JSON.stringify(previous)) {
@@ -80,6 +84,7 @@ async function mount(doc, win, storageArea, options = {}) {
       if (ok) rendered.set(annotation.id, annotation);
       else if (!failedToRender.includes(annotation.id)) failedToRender.push(annotation.id);
     }
+    sidebar?.update(annotations);
     if (session) {
       // Yjs can deliver several updates in one turn. Keep the local mirror
       // ordered so a slower earlier write cannot overwrite a newer snapshot.
@@ -120,7 +125,16 @@ async function mount(doc, win, storageArea, options = {}) {
   toolbarHost.style.transform = 'translateX(-50%)';
   toolbarHost.style.zIndex = '2147483647';
   doc.body.appendChild(toolbarHost);
-  const disposeToolbar = mountToolbar(toolbarHost, toolbarState);
+  const sidebarHost = doc.createElement('div');
+  sidebarHost.className = 'qc-sidebar-host';
+  const disposeSidebar = () => { sidebar?.dispose(); sidebar = null; };
+  const disposeToolbar = mountToolbar(toolbarHost, toolbarState, {
+    onSidebarToggle: () => {
+      if (sidebar) disposeSidebar();
+      else sidebar = mountSidebar(sidebarHost, currentAnnotations, { onClose: disposeSidebar });
+    },
+  });
+  doc.body.appendChild(sidebarHost);
 
   await onboarding.markStepComplete('install');
 
@@ -135,6 +149,10 @@ async function mount(doc, win, storageArea, options = {}) {
     render: !session,
     onAnnotationCreated: (record) => {
       onboarding.markStepComplete('first-annotation');
+      if (!session) {
+        currentAnnotations = [...currentAnnotations, record];
+        sidebar?.update(currentAnnotations);
+      }
       session?.addAnnotation(record);
     },
   });
@@ -162,11 +180,13 @@ async function mount(doc, win, storageArea, options = {}) {
     dispose() {
       disposeOverlay();
       disposeToolbar();
+      disposeSidebar();
       disposeInteractions();
       disposeOnboarding();
       session?.dispose();
       toolbarHost.remove();
       onboardingHost.remove();
+      sidebarHost.remove();
       doc.removeEventListener('keydown', handleKeydown);
     },
   };
