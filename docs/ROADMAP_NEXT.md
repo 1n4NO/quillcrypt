@@ -176,6 +176,11 @@ join/unlock UI, and actionable missing-key states remain for QC-NEXT-020 and QC-
   logs;
 - lifecycle tests cover worker restart and duplicate messages.
 
+**Status:** partially implemented. A shared message contract now validates `PING`, status,
+relay-state, and settings-open requests; the background entry point registers the handler and
+forwards the browser action to the active tab. Settings UI mounting and worker-restart coverage
+remain for the next slice.
+
 ### QC-NEXT-014 - Real UI mounting: settings, sidebar, and onboarding *(Story, M)*
 
 **Problem:** toolbar and onboarding are mounted by the content script, but settings and the
