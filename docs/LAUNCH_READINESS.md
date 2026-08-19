@@ -15,19 +15,17 @@ Several previously-flagged gaps have been resolved since this checklist was firs
 (marked below with what changed). One significant gap was only discovered while re-checking
 this list, not caught earlier — flagged plainly rather than glossed over.
 
-0. **NEWLY DISCOVERED — `content-script.js` and `background.js` are still empty scaffolds.**
-   Every module described below (anchoring, tools, sync, encryption, UI views) is real, tested
-   library code — but nothing actually calls any of it from the extension's real entry points.
-   `manifest.json` is valid and icons exist, so the extension would install in Firefox, but it
-   would do nothing when installed: no content script mounts the overlay, no toolbar renders,
-   no sync client connects. **This is the actual top-priority gap**, ahead of even the manual
-   QA pass below — there's no running extension to QA yet. Wiring this up is real, bounded
-   integration work (call `injectOnce` → mount the SVG overlay → `mountToolbar` → wire tool
-   selection to the anchoring/draw code → connect `SyncClient`), not a new architecture
-   decision, since every piece it needs to call already exists and is tested in isolation.
+0. **NEWLY DISCOVERED — live entry points are only partially composed.**
+   `content-script.js` now mounts local annotations, the SVG overlay, toolbar, and onboarding,
+   and Chrome/Firefox bundles are generated. It still does not connect workspace selection,
+   encrypted `SyncClient`, presence, member management, or settings to the live extension.
+   `background.js` is a lifecycle scaffold rather than a real message/sync coordinator. **This
+   remains the top implementation gap**, ahead of manual QA: the single-user path is now real,
+   but collaborative product behavior is not yet reachable from the installed extension.
 
-1. **QC-23's manual real-browser QA has not been performed** — and can't meaningfully happen
-   until item 0 above is done, since there's currently nothing to load and interact with.
+1. **QC-23's manual real-browser QA has not been performed.** The local annotation path is now
+   loadable, so this can begin immediately for the single-user experience; collaboration QA
+   remains blocked on the live sync wiring above.
 
 2. **QC-47's security audit is scoped, not performed.** `docs/SECURITY_AUDIT_SCOPE.md` tells an
    auditor where to look; no external party has actually reviewed the code yet. The public
@@ -59,24 +57,20 @@ this list, not caught earlier — flagged plainly rather than glossed over.
    exists and is tested" with "the component is wired into a running extension." Correcting
    that here rather than leaving it.
 
-8. **Chrome support** is explicitly out of scope for v1 (see `docs/ROADMAP.md`), not a gap —
-   noted here only because it comes up. Two isolated `manifest.json` changes
-   (`browser_specific_settings` removal, `background.scripts` → `background.service_worker`)
-   are the actual delta; everything else (sync, crypto, storage, content scripts) is standard
-   WebExtension API and needs no changes.
+8. **Chrome support** now has a build path (`npm run build:chrome --workspace=extension`) and a
+   Chrome MV3 manifest in `extension/manifest.chrome.json`. It still needs real Chrome unpacked
+   install/smoke verification and store packaging before it can be called supported.
 
 ## Recommended order to close what's left
 
-1. ~~Generate real icon PNGs~~ — done
-2. ~~Build DOM view components for toolbar/settings/onboarding~~ — done
-3. **Wire those components (and the anchoring/tool/sync modules) into
-   `content-script.js`/`background.js`** — this is the actual current top priority
-4. Do the QC-23 manual browser QA pass, now that there's something to load
-5. Capture real screenshots
-6. ~~Resolve npm workspaces / duplicate-yjs~~ — done
-7. Commission the QC-47 external audit
-8. Decide explicitly on relay persistence durability
-9. Submit to the Firefox Add-ons store per `docs/STORE_SUBMISSION_PREP.md`
+1. **Wire workspace selection, encrypted sync, and presence into the live extension**
+2. **Add real background messaging and mount settings/sidebar flows**
+3. Do the QC-23 manual browser QA pass for Chrome and Firefox
+4. Capture real screenshots
+5. Commission the QC-47 external audit
+6. Decide explicitly on relay persistence durability
+7. Harden the landing-page download/store links
+8. Submit to browser stores per `docs/STORE_SUBMISSION_PREP.md`
 
 ## Go/no-go recommendation
 

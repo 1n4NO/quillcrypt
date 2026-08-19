@@ -26,6 +26,7 @@ function attachToolInteractions({
   store,
   url,
   onAnnotationCreated,
+  render = true,
   getSelection = () => doc.defaultView.getSelection(),
   promptForNoteContent = () => doc.defaultView.prompt('Note text:') || '',
 }) {
@@ -34,7 +35,7 @@ function attachToolInteractions({
 
   async function persistAndRender(record) {
     await store.addAnnotation(url, record);
-    renderAnnotation(root, overlaySvg, noteLayer, record);
+    if (render) renderAnnotation(root, overlaySvg, noteLayer, record);
     onAnnotationCreated?.(record);
   }
 

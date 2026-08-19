@@ -129,6 +129,10 @@ a browser-like environment.
 - storage and extension APIs work through one explicit browser API adapter;
 - a generated bundle can execute its entry-point initialization without a console exception.
 
+**Status:** substantially implemented for the current entry points; the bundle verifier now
+rejects Node builtin requires and Buffer usage in generated Chrome and Firefox artifacts. A real
+browser smoke run is still required.
+
 ### QC-NEXT-012 - Complete content-script composition *(Story, L)*
 
 **Problem:** the current content script handles local annotation only. It does not choose a
@@ -148,6 +152,11 @@ a browser-like environment.
 - no decrypted content is sent to integrations or the relay.
 
 **Depends on:** QC-NEXT-011, QC-NEXT-020, QC-NEXT-021.
+
+**Status:** first runtime slice implemented. Matching workspaces with a stored key and configured
+relay now create an encrypted `WorkspaceSession`, sync annotations and presence, render remote
+changes, mirror them to local storage, and dispose transports on teardown. Workspace creation,
+join/unlock UI, and actionable missing-key states remain for QC-NEXT-020 and QC-NEXT-014.
 
 ### QC-NEXT-013 - Background lifecycle and extension messaging *(Story, M)*
 

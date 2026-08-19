@@ -68,4 +68,33 @@ class WebExtensionOnboardingBackend {
   }
 }
 
-module.exports = { WebExtensionStorageBackend, WebExtensionOnboardingBackend };
+class WebExtensionWorkspaceRegistryBackend {
+  constructor(storageArea = globalThis.browser?.storage?.local) {
+    this._backend = new WebExtensionStorageBackend('workspaces', storageArea);
+  }
+  async get(id) { return this._backend.get(id); }
+  async set(id, workspace) { return this._backend.set(id, workspace); }
+  async remove(id) { return this._backend.remove(id); }
+  async list() {
+    const ids = await this._backend.keys();
+    return Promise.all(ids.map((id) => this._backend.get(id)));
+  }
+}
+
+class WebExtensionConfigBackend {
+  constructor(storageArea = globalThis.browser?.storage?.local) {
+    this._backend = new WebExtensionStorageBackend('config', storageArea);
+  }
+  async getRelayUrl() { return this._backend.get('relay-url'); }
+  async setRelayUrl(url) {
+    const normalized = typeof url === 'string' ? url.trim().replace(/\/$/, '') : '';
+    return normalized ? this._backend.set('relay-url', normalized) : this._backend.remove('relay-url');
+  }
+}
+
+module.exports = {
+  WebExtensionStorageBackend,
+  WebExtensionOnboardingBackend,
+  WebExtensionWorkspaceRegistryBackend,
+  WebExtensionConfigBackend,
+};

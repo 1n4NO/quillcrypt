@@ -2,11 +2,20 @@
 const { injectOnce } = require('./readiness');
 const { mountOverlay } = require('./overlayController');
 const { AnnotationStore } = require('../storage/store');
-const { WebExtensionStorageBackend, WebExtensionOnboardingBackend } = require('../storage/webExtensionStorage');
+const {
+  WebExtensionStorageBackend,
+  WebExtensionOnboardingBackend,
+  WebExtensionWorkspaceRegistryBackend,
+  WebExtensionConfigBackend,
+} = require('../storage/webExtensionStorage');
+const { KeyStore } = require('../crypto/keyStore');
+const { WorkspaceRegistry } = require('../ui/settings');
+const { findWorkspacesForUrl } = require('../storage/workspace');
+const { WorkspaceSession } = require('../sync/workspaceSession');
 const { ToolbarState } = require('../ui/toolbar');
 const { mountToolbar } = require('../ui/toolbarView');
 const { attachToolInteractions } = require('./toolInteractions');
-const { renderAnnotation } = require('./annotationRenderer');
+const { renderAnnotation, removeAnnotationElement } = require('./annotationRenderer');
 const { AnnotationEditController } = require('../models/editController');
 const { OnboardingState } = require('../ui/onboarding');
 const { mountOnboarding } = require('../ui/onboardingView');
@@ -21,14 +30,11 @@ const { mountOnboarding } = require('../ui/onboardingView');
  * simulated real user input, then confirm it persists and re-renders
  * across a simulated page reload.
  *
- * SCOPE NOTE: this wires up LOCAL annotation only — creating, persisting,
- * rendering, and deleting annotations on this device. It deliberately does
- * NOT wire SyncClient/encryption/workspace-join here. That's a distinct,
- * separately-scoped piece of work (needs a real relay URL and a
- * workspace-join UI that doesn't exist yet) — wiring it in half-tested
- * would violate the standard the rest of this project has held to.
+ * SCOPE NOTE: local annotation remains the safe fallback. When an unlocked
+ * matching workspace and relay URL exist in extension storage, this same
+ * composition upgrades the page to an encrypted WorkspaceSession.
  */
-async function mount(doc, win, storageArea) {
+async function mount(doc, win, storageArea, options = {}) {
   const url = win.location.href;
 
   const { overlaySvg, noteLayer, dispose: disposeOverlay } = mountOverlay(doc, win);
@@ -38,12 +44,72 @@ async function mount(doc, win, storageArea) {
   const editController = new AnnotationEditController(store);
   const toolbarState = new ToolbarState();
 
-  // Render every annotation already persisted for this page.
   const existing = await store.getAnnotationsForUrl(url);
   const failedToRender = [];
-  for (const annotation of existing) {
-    const ok = renderAnnotation(doc.body, overlaySvg, noteLayer, annotation);
-    if (!ok) failedToRender.push(annotation.id);
+  const registry = new WorkspaceRegistry(new WebExtensionWorkspaceRegistryBackend(storageArea));
+  const keyStore = new KeyStore(new WebExtensionStorageBackend('keys', storageArea));
+  const configuredRelayUrl = options.relayUrl || await new WebExtensionConfigBackend(storageArea).getRelayUrl();
+  const workspaces = await registry.listWorkspaces();
+  // Resolve the first matching unlocked workspace explicitly.
+  let workspace = null;
+  let workspaceKey = null;
+  if (configuredRelayUrl) {
+    for (const candidate of findWorkspacesForUrl(workspaces, url)) {
+      const candidateKey = await keyStore.getWorkspaceKey(candidate.id);
+      if (candidateKey) { workspace = candidate; workspaceKey = candidateKey; break; }
+    }
+  }
+
+  const session = workspace && workspaceKey
+    ? new WorkspaceSession(workspace, workspaceKey, configuredRelayUrl, options)
+    : null;
+  const rendered = new Map();
+  let mirrorPromise = Promise.resolve();
+
+  function renderCurrentAnnotations(annotations) {
+    const next = new Map(annotations.map((annotation) => [annotation.id, annotation]));
+    for (const [id, previous] of rendered) {
+      if (!next.has(id) || JSON.stringify(next.get(id)) !== JSON.stringify(previous)) {
+        removeAnnotationElement(doc.body, overlaySvg, noteLayer, previous);
+        rendered.delete(id);
+      }
+    }
+    for (const annotation of annotations) {
+      if (rendered.has(annotation.id)) continue;
+      const ok = renderAnnotation(doc.body, overlaySvg, noteLayer, annotation);
+      if (ok) rendered.set(annotation.id, annotation);
+      else if (!failedToRender.includes(annotation.id)) failedToRender.push(annotation.id);
+    }
+    if (session) {
+      // Yjs can deliver several updates in one turn. Keep the local mirror
+      // ordered so a slower earlier write cannot overwrite a newer snapshot.
+      mirrorPromise = mirrorPromise
+        .then(() => mirrorAnnotationsToLocalStore(annotations))
+        .catch(() => {});
+    }
+  }
+
+  async function mirrorAnnotationsToLocalStore(annotations) {
+    const local = await store.getAnnotationsForUrl(url);
+    const localById = new Map(local.map((annotation) => [annotation.id, annotation]));
+    const remoteIds = new Set(annotations.map((annotation) => annotation.id));
+    for (const annotation of annotations) {
+      const previous = localById.get(annotation.id);
+      if (!previous) await store.addAnnotation(url, annotation);
+      else if (JSON.stringify(previous) !== JSON.stringify(annotation)) {
+        await store.updateAnnotation(url, annotation.id, annotation);
+      }
+    }
+    for (const annotation of local) {
+      if (!remoteIds.has(annotation.id)) await store.deleteAnnotation(url, annotation.id);
+    }
+  }
+
+  if (session) {
+    for (const annotation of existing) session.addAnnotation(annotation);
+    session.onAnnotationsChange(renderCurrentAnnotations);
+  } else {
+    renderCurrentAnnotations(existing);
   }
 
   const toolbarHost = doc.createElement('div');
@@ -66,8 +132,10 @@ async function mount(doc, win, storageArea) {
     toolbarState,
     store,
     url,
-    onAnnotationCreated: () => {
+    render: !session,
+    onAnnotationCreated: (record) => {
       onboarding.markStepComplete('first-annotation');
+      session?.addAnnotation(record);
     },
   });
 
@@ -96,6 +164,7 @@ async function mount(doc, win, storageArea) {
       disposeToolbar();
       disposeInteractions();
       disposeOnboarding();
+      session?.dispose();
       toolbarHost.remove();
       onboardingHost.remove();
       doc.removeEventListener('keydown', handleKeydown);

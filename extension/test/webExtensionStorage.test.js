@@ -1,5 +1,10 @@
 'use strict';
-const { WebExtensionStorageBackend, WebExtensionOnboardingBackend } = require('../src/storage/webExtensionStorage');
+const {
+  WebExtensionStorageBackend,
+  WebExtensionOnboardingBackend,
+  WebExtensionWorkspaceRegistryBackend,
+  WebExtensionConfigBackend,
+} = require('../src/storage/webExtensionStorage');
 const { AnnotationStore } = require('../src/storage/store');
 
 let pass = 0, fail = 0;
@@ -61,6 +66,21 @@ async function main() {
   await store.addAnnotation('https://example.com/page', { id: 'ann-1', type: 'highlight', content: null });
   const retrieved = await store.getAnnotationsForUrl('https://example.com/page');
   check('AnnotationStore (unmodified, already-tested code) works correctly against this real backend', retrieved.length === 1 && retrieved[0].id === 'ann-1');
+
+  const workspaceBackend = new WebExtensionWorkspaceRegistryBackend(createMockStorageArea());
+  const workspace = { id: 'ws-1', name: 'Research', scopeType: 'domain', scopeValue: 'example.com' };
+  await workspaceBackend.set(workspace.id, workspace);
+  check('workspace registry backend round-trips workspace records', JSON.stringify(await workspaceBackend.get(workspace.id)) === JSON.stringify(workspace));
+  check('workspace registry backend lists stored workspaces', (await workspaceBackend.list()).length === 1);
+  await workspaceBackend.remove(workspace.id);
+  check('workspace registry backend removes workspace records', (await workspaceBackend.get(workspace.id)) === null);
+
+  const configBackend = new WebExtensionConfigBackend(createMockStorageArea());
+  check('config backend starts without a relay URL', (await configBackend.getRelayUrl()) === null);
+  await configBackend.setRelayUrl(' ws://localhost:8123/relay/ ');
+  check('config backend normalizes the relay URL', (await configBackend.getRelayUrl()) === 'ws://localhost:8123/relay');
+  await configBackend.setRelayUrl('');
+  check('config backend clears an empty relay URL', (await configBackend.getRelayUrl()) === null);
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);

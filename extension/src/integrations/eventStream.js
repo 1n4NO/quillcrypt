@@ -1,6 +1,5 @@
 'use strict';
-const nodeCrypto = require('crypto');
-const subtle = nodeCrypto.webcrypto ? nodeCrypto.webcrypto.subtle : null;
+const subtle = globalThis.crypto?.subtle || null;
 
 /**
  * Metadata-only event stream (QC-50).
@@ -28,7 +27,7 @@ async function hashUrl(url) {
   if (!subtle) throw new Error('Web Crypto subtle API not available in this environment');
   const encoded = new TextEncoder().encode(url);
   const digest = await subtle.digest('SHA-256', encoded);
-  return Buffer.from(digest).toString('hex');
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /** Throws if `event` contains any key outside the allowed whitelist. */
@@ -36,7 +35,7 @@ function assertMetadataOnly(event) {
   const keys = Object.keys(event);
   const disallowed = keys.filter((k) => !EVENT_ALLOWED_KEYS.includes(k));
   if (disallowed.length > 0) {
-    throw new Error(`Event contains non-whitelisted key(s): ${disallowed.join(', ')} — this would leak content-adjacent data to integrations`);
+    throw new Error(`Event contains non-whitelisted key(s): ${disallowed.join(', ')} - this would leak content-adjacent data to integrations`);
   }
 }
 
