@@ -59,9 +59,67 @@ async function mountSettings(container, settingsController) {
   heading.textContent = 'Your workspaces';
   root.appendChild(heading);
 
+  const workspaceSection = doc.createElement('section');
+  workspaceSection.className = 'qc-settings-workspace-create';
+  const createHeading = doc.createElement('h3');
+  createHeading.textContent = 'Create a workspace';
+  workspaceSection.appendChild(createHeading);
+  const nameInput = doc.createElement('input');
+  nameInput.type = 'text'; nameInput.placeholder = 'Workspace name'; nameInput.setAttribute('aria-label', 'Workspace name');
+  const scopeSelect = doc.createElement('select');
+  scopeSelect.setAttribute('aria-label', 'Workspace scope');
+  for (const [value, label] of [['urlList', 'Just this page'], ['domain', 'This whole domain']]) {
+    const option = doc.createElement('option'); option.value = value; option.textContent = label; scopeSelect.appendChild(option);
+  }
+  const createButton = doc.createElement('button');
+  createButton.type = 'button'; createButton.textContent = 'Create invite';
+  const createStatus = doc.createElement('p'); createStatus.className = 'qc-settings-create-status'; createStatus.setAttribute('role', 'status');
+  createButton.addEventListener('click', async () => {
+    try {
+      const result = await settingsController.createWorkspaceForPage({ name: nameInput.value, scopeType: scopeSelect.value });
+      createStatus.textContent = result.inviteLink;
+      await render();
+    } catch (error) { createStatus.textContent = error.message; }
+  });
+  workspaceSection.append(nameInput, scopeSelect, createButton, createStatus);
+  root.appendChild(workspaceSection);
+
   const list = doc.createElement('ul');
   list.className = 'qc-settings-list';
   root.appendChild(list);
+
+  const exportSection = doc.createElement('section');
+  exportSection.className = 'qc-settings-export';
+  const exportHeading = doc.createElement('h3');
+  exportHeading.textContent = 'Export this page';
+  exportSection.appendChild(exportHeading);
+  const exportStatus = doc.createElement('p');
+  exportStatus.className = 'qc-settings-export-status';
+  exportStatus.setAttribute('role', 'status');
+  const download = (format, content) => {
+    const extension = format === 'json' ? 'json' : 'md';
+    const link = doc.createElement('a');
+    link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
+    link.download = `quillcrypt-annotations.${extension}`;
+    link.click();
+  };
+  for (const [format, label] of [['json', 'Download JSON'], ['markdown', 'Download Markdown']]) {
+    const button = doc.createElement('button');
+    button.type = 'button';
+    button.className = 'qc-settings-export-button';
+    button.textContent = label;
+    button.addEventListener('click', async () => {
+      try {
+        download(format, await settingsController.exportCurrentPage(format));
+        exportStatus.textContent = `${label} ready.`;
+      } catch (error) {
+        exportStatus.textContent = 'Export is unavailable right now.';
+      }
+    });
+    exportSection.appendChild(button);
+  }
+  exportSection.appendChild(exportStatus);
+  root.appendChild(exportSection);
 
   const emptyState = doc.createElement('p');
   emptyState.className = 'qc-settings-empty';

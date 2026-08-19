@@ -96,3 +96,41 @@
   padding: 16px 0;
   text-align: center;
 }
+
+.qc-settings-export {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e0d4;
+}
+
+.qc-settings-workspace-create {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e0d4;
+}
+
+.qc-settings-workspace-create h3 { font-size: 13px; margin: 0 0 8px; }
+.qc-settings-workspace-create input,
+.qc-settings-workspace-create select,
+.qc-settings-workspace-create button { margin: 0 6px 6px 0; padding: 6px 8px; }
+.qc-settings-create-status { margin: 4px 0 0; font-size: 11px; overflow-wrap: anywhere; color: #6b6559; }
+
+.qc-settings-export h3 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.qc-settings-export-button {
+  margin-right: 8px;
+  padding: 6px 9px;
+  border: 1px solid #e5e0d4;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.qc-settings-export-status {
+  color: #6b6559;
+  font-size: 11px;
+  min-height: 1em;
+}

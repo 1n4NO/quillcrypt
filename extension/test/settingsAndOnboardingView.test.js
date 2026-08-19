@@ -21,7 +21,11 @@ async function main() {
   const settingsContainer = dom.window.document.createElement('div');
   const keyStore = new KeyStore();
   const registry = new WorkspaceRegistry();
-  const controller = new SettingsController(keyStore, registry);
+  const controller = new SettingsController(keyStore, registry, {
+    url: 'https://example.com/article',
+    pageTitle: 'Article',
+    getAnnotations: async () => [{ id: 'a1', type: 'highlight', anchor: { exact: 'hello' } }],
+  });
 
   await registry.addWorkspace({ id: 'ws-1', name: 'My Notes', scopeType: 'domain', scopeValue: 'example.com' });
   await registry.addWorkspace({ id: 'ws-2', name: 'Shared review', scopeType: 'urlList', scopeValue: ['https://a.com/1'] });
@@ -38,6 +42,11 @@ async function main() {
 
   const ws2Row = settingsContainer.querySelector('[data-workspace-id="ws-2"]');
   check('settings: workspace WITHOUT a key shows "No key"', ws2Row.querySelector('.qc-settings-badge').textContent === 'No key');
+  check('settings: JSON export action is rendered', settingsContainer.querySelector('[download="quillcrypt-annotations.json"]') === null && settingsContainer.querySelector('.qc-settings-export-button') !== null);
+  check('settings: controller exports current page annotations', (await controller.exportCurrentPage('json')).includes('"annotationCount": 1'));
+  const created = await controller.createWorkspaceForPage({ name: 'New review', scopeType: 'urlList' });
+  check('settings: creates a workspace for the active page', created.workspace.scopeValue[0] === 'https://example.com/article');
+  check('settings: generated invite keeps the key in the URL fragment', new URL(created.inviteLink).hash.startsWith('#key='));
 
   const leaveButton = ws1Row.querySelector('.qc-settings-leave');
   leaveButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));

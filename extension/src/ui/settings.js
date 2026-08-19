@@ -45,9 +45,10 @@ class WorkspaceRegistry {
 }
 
 class SettingsController {
-  constructor(keyStore, workspaceRegistry) {
+  constructor(keyStore, workspaceRegistry, pageContext = {}) {
     this.keyStore = keyStore;
     this.workspaceRegistry = workspaceRegistry;
+    this.pageContext = pageContext;
   }
 
   /** Combined view-model: every registered workspace, annotated with whether this device still has its key. */
@@ -75,6 +76,47 @@ class SettingsController {
   async removeWorkspaceLocally(workspaceId) {
     await this.keyStore.removeWorkspaceKey(workspaceId);
     await this.workspaceRegistry.removeWorkspace(workspaceId);
+  }
+
+  async exportCurrentPage(format) {
+    const annotations = await (this.pageContext.getAnnotations?.() || []);
+    const { url, pageTitle } = this.pageContext;
+    const exporters = require('../models/exportAnnotations');
+    if (format === 'json') return exporters.exportToJson(annotations, { url });
+    if (format === 'markdown') return exporters.exportToMarkdown(annotations, { url, pageTitle });
+    throw new Error(`Unknown export format: ${format}`);
+  }
+
+  async createWorkspaceForPage({ name, scopeType, origin = 'https://app.quillcrypt.dev' }) {
+    const { createWorkspace } = require('../storage/workspace');
+    const { buildScopeOptions } = require('../storage/scopingHelper');
+    const { generateSymmetricKey, ready } = require('../crypto/primitives');
+    const { buildWorkspaceInviteLink } = require('../crypto/invite');
+    if (!name?.trim()) throw new Error('Workspace name is required');
+    const options = buildScopeOptions(this.pageContext.url);
+    const selected = options.find((option) => option.scopeType === scopeType);
+    if (!selected) throw new Error('Unknown workspace scope');
+    const workspace = createWorkspace({ name: name.trim(), scopeType, scopeValue: selected.scopeValue });
+    await ready();
+    const key = generateSymmetricKey();
+    await this.workspaceRegistry.addWorkspace(workspace);
+    await this.keyStore.storeWorkspaceKey(workspace.id, key);
+    return { workspace, inviteLink: buildWorkspaceInviteLink(origin, workspace, key).href };
+  }
+
+  async acceptInvite(url) {
+    const { parseInviteLink } = require('../crypto/invite');
+    let invite;
+    try { invite = parseInviteLink(new URL(url)); } catch { throw new Error('This invite link is invalid'); }
+    if (!invite?.workspace?.name || !invite.workspace.scopeType || !invite.workspace.scopeValue) {
+      throw new Error('This invite link is invalid');
+    }
+    if (await this.workspaceRegistry.get?.(invite.workspace.id) || (await this.workspaceRegistry.listWorkspaces()).some((ws) => ws.id === invite.workspace.id)) {
+      throw new Error('This workspace is already on this device');
+    }
+    await this.workspaceRegistry.addWorkspace(invite.workspace);
+    await this.keyStore.storeWorkspaceKey(invite.workspace.id, invite.key);
+    return invite.workspace;
   }
 }
 

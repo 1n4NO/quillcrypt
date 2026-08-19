@@ -50,7 +50,11 @@ async function mount(doc, win, storageArea, options = {}) {
   const failedToRender = [];
   const registry = new WorkspaceRegistry(new WebExtensionWorkspaceRegistryBackend(storageArea));
   const keyStore = new KeyStore(new WebExtensionStorageBackend('keys', storageArea));
-  const settingsController = new SettingsController(keyStore, registry);
+  const settingsController = new SettingsController(keyStore, registry, {
+    url,
+    pageTitle: doc.title,
+    getAnnotations: () => currentAnnotations,
+  });
   const configuredRelayUrl = options.relayUrl || await new WebExtensionConfigBackend(storageArea).getRelayUrl();
   const workspaces = await registry.listWorkspaces();
   // Resolve the first matching unlocked workspace explicitly.
