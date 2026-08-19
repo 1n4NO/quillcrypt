@@ -22,6 +22,7 @@ const ALLOWED_ORIGINS = process.env.RELAY_ALLOWED_ORIGINS
 const MAX_PAYLOAD = Number(process.env.RELAY_MAX_PAYLOAD || 1024 * 1024);
 const MAX_ROOMS = Number(process.env.RELAY_MAX_ROOMS || Infinity);
 const MAX_CLIENTS_PER_ROOM = Number(process.env.RELAY_MAX_CLIENTS_PER_ROOM || Infinity);
+const HEARTBEAT_INTERVAL = Number(process.env.RELAY_HEARTBEAT_INTERVAL || 30000);
 startPersistentRelay(PORT, {
   persistencePath: DATA_PATH,
   authToken: AUTH_TOKEN,
@@ -29,5 +30,6 @@ startPersistentRelay(PORT, {
   maxPayload: MAX_PAYLOAD,
   maxRooms: MAX_ROOMS,
   maxClientsPerRoom: MAX_CLIENTS_PER_ROOM,
+  heartbeatIntervalMs: HEARTBEAT_INTERVAL,
 });
 console.log(`Quillcrypt relay (with persistence) listening on ws://localhost:${PORT}`);

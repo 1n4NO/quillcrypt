@@ -29,6 +29,7 @@ function startPersistentRelay(port, options = {}) {
   const allowedOrigins = options.allowedOrigins || null;
   const maxRooms = options.maxRooms ?? Infinity;
   const maxClientsPerRoom = options.maxClientsPerRoom ?? Infinity;
+  const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 30000;
   const authProtocol = authToken ? `quillcrypt-auth.${authToken}` : null;
   const wss = new WebSocket.Server({
     port,
@@ -88,6 +89,8 @@ function startPersistentRelay(port, options = {}) {
       return;
     }
     room.add(ws);
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
 
     // Catch-up: replay everything stored for this room to the new connection,
     // whether it's reconnecting after a drop or joining for the very first time.
@@ -121,9 +124,20 @@ function startPersistentRelay(port, options = {}) {
     });
   });
 
+  const heartbeatTimer = heartbeatIntervalMs > 0 ? setInterval(() => {
+    for (const room of rooms.values()) {
+      for (const ws of room) {
+        if (ws.isAlive === false) { ws.terminate(); continue; }
+        ws.isAlive = false;
+        ws.ping();
+      }
+    }
+  }, heartbeatIntervalMs) : null;
+  heartbeatTimer?.unref?.();
+
   return {
     wss,
-    close: () => wss.close(),
+    close: () => { if (heartbeatTimer) clearInterval(heartbeatTimer); return wss.close(); },
     getStats: () => ({
       roomCount: rooms.size,
       logSizePerRoom: Object.fromEntries([...roomLogs.entries()].map(([id, log]) => [id, log.length])),
