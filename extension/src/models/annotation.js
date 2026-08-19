@@ -1,5 +1,9 @@
 'use strict';
-const crypto = require('crypto');
+// Uses the global `crypto` (Web Crypto API in browsers, also global in
+// Node 19+) rather than require('crypto') — the latter is Node-only and
+// breaks when this module is bundled for a browser content script. Caught
+// by actually running this through esbuild and seeing it fail to resolve
+// "crypto", not by inspection.
 
 /**
  * Annotation data model.

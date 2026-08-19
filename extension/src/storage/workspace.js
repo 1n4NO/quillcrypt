@@ -1,5 +1,8 @@
 'use strict';
-const crypto = require('crypto');
+// Uses the global `crypto` (Web Crypto API in browsers, also global in
+// Node 19+) rather than require('crypto') — same fix as annotation.js,
+// caught the same way: require('crypto') is Node-only and breaks when
+// bundled for a browser content script.
 const { normalizeUrl } = require('./store');
 
 /**

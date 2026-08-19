@@ -12,8 +12,12 @@ development; see `docs/LAUNCH_READINESS.md`).
 
 - `extension/` — the Firefox WebExtension (Manifest V3)
 - `relay-server/` — thin, blind WebSocket relay for encrypted CRDT sync
+- `quillcrypt-landing/` — standalone Editorial-style product landing page
 - `logo/` — brand mark and lockup SVGs
 - `docs/` — implementation plan, roadmap, architecture notes, privacy policy, security docs
+
+The historical implementation plan is in `docs/ROADMAP.md`. The active release plan, including
+remaining blockers and detailed acceptance criteria, is in `docs/ROADMAP_NEXT.md`.
 
 ## Status
 
@@ -41,6 +45,10 @@ npm test
 
 `npm test` runs both packages' test suites in sequence. Run just one with
 `npm run test:extension` or `npm run test:relay`.
+
+To build the extension for Chrome, run `npm run build:chrome --workspace=extension` and
+load `extension/chrome-dist/` as an unpacked extension. The regular `npm run build:firefox
+--workspace=extension` command produces the Firefox package.
 
 If you haven't already:
 
