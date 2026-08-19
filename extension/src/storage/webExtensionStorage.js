@@ -90,6 +90,11 @@ class WebExtensionConfigBackend {
     const normalized = typeof url === 'string' ? url.trim().replace(/\/$/, '') : '';
     return normalized ? this._backend.set('relay-url', normalized) : this._backend.remove('relay-url');
   }
+  async getRelayAuthToken() { return this._backend.get('relay-auth-token'); }
+  async setRelayAuthToken(token) {
+    const normalized = typeof token === 'string' ? token.trim() : '';
+    return normalized ? this._backend.set('relay-auth-token', normalized) : this._backend.remove('relay-auth-token');
+  }
 }
 
 module.exports = {

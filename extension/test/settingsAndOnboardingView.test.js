@@ -54,13 +54,18 @@ async function main() {
   let duplicateRejected = false;
   try { await joined.acceptInvite(created.inviteLink); } catch { duplicateRejected = true; }
   check('settings: duplicate invite is rejected clearly', duplicateRejected);
-  const config = { value: '', async getRelayUrl() { return this.value; }, async setRelayUrl(value) { this.value = value; } };
+  const config = { value: '', token: '', async getRelayUrl() { return this.value; }, async setRelayUrl(value) { this.value = value; }, async getRelayAuthToken() { return this.token; }, async setRelayAuthToken(value) { this.token = value; } };
   const configured = new SettingsController(new KeyStore(), new WorkspaceRegistry(), { configBackend: config });
   await configured.setRelayUrl('wss://relay.example.com/');
   check('settings: relay URL is normalized before storage', (await configured.getRelayUrl()) === 'wss://relay.example.com');
   let invalidRelayRejected = false;
   try { await configured.setRelayUrl('https://relay.example.com'); } catch { invalidRelayRejected = true; }
   check('settings: non-WebSocket relay URL is rejected', invalidRelayRejected);
+  await configured.setRelayAuthToken('token_123');
+  check('settings: relay auth token round-trips through configuration', (await configured.getRelayAuthToken()) === 'token_123');
+  let invalidTokenRejected = false;
+  try { await configured.setRelayAuthToken('token with spaces'); } catch { invalidTokenRejected = true; }
+  check('settings: relay auth token rejects unsupported characters', invalidTokenRejected);
 
   const leaveButton = ws1Row.querySelector('.qc-settings-leave');
   leaveButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));

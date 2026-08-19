@@ -118,6 +118,16 @@ async function mountSettings(container, settingsController) {
     catch (error) { relayStatus.textContent = error.message; }
   });
   relaySection.append(relayHeading, relayInput, relayButton, relayStatus);
+  const tokenInput = doc.createElement('input');
+  tokenInput.type = 'password'; tokenInput.placeholder = 'Optional relay token'; tokenInput.setAttribute('aria-label', 'Relay authentication token');
+  tokenInput.value = await settingsController.getRelayAuthToken();
+  const tokenButton = doc.createElement('button'); tokenButton.type = 'button'; tokenButton.textContent = 'Save token';
+  const tokenStatus = doc.createElement('p'); tokenStatus.className = 'qc-settings-relay-status'; tokenStatus.setAttribute('role', 'status');
+  tokenButton.addEventListener('click', async () => {
+    try { await settingsController.setRelayAuthToken(tokenInput.value); tokenStatus.textContent = 'Relay token saved. Reload the page to reconnect.'; }
+    catch (error) { tokenStatus.textContent = error.message; }
+  });
+  relaySection.append(tokenInput, tokenButton, tokenStatus);
   root.appendChild(relaySection);
 
   const list = doc.createElement('ul');

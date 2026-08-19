@@ -102,6 +102,18 @@ class SettingsController {
     return normalized;
   }
 
+  async getRelayAuthToken() {
+    return await this.pageContext.configBackend?.getRelayAuthToken() || '';
+  }
+
+  async setRelayAuthToken(value) {
+    const token = typeof value === 'string' ? value.trim() : '';
+    if (token && /[^A-Za-z0-9._~-]/.test(token)) throw new Error('Relay token contains unsupported characters');
+    await this.pageContext.configBackend?.setRelayAuthToken(token);
+    this.pageContext.relayAuthToken = token;
+    return token;
+  }
+
   async createWorkspaceForPage({ name, scopeType, origin = 'https://app.quillcrypt.dev' }) {
     const { createWorkspace } = require('../storage/workspace');
     const { buildScopeOptions } = require('../storage/scopingHelper');

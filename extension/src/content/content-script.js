@@ -52,6 +52,7 @@ async function mount(doc, win, storageArea, options = {}) {
   const keyStore = new KeyStore(new WebExtensionStorageBackend('keys', storageArea));
   const configBackend = new WebExtensionConfigBackend(storageArea);
   const configuredRelayUrl = options.relayUrl || await configBackend.getRelayUrl();
+  const configuredRelayAuthToken = options.relayAuthToken || await configBackend.getRelayAuthToken();
   const settingsController = new SettingsController(keyStore, registry, {
     url,
     pageTitle: doc.title,
@@ -59,6 +60,7 @@ async function mount(doc, win, storageArea, options = {}) {
     onWorkspaceAccepted: (acceptedWorkspace, acceptedKey) => activateWorkspace(acceptedWorkspace, acceptedKey),
     configBackend,
     relayUrl: configuredRelayUrl,
+    relayAuthToken: configuredRelayAuthToken,
   });
   const workspaces = await registry.listWorkspaces();
   // Resolve the first matching unlocked workspace explicitly.
@@ -72,7 +74,10 @@ async function mount(doc, win, storageArea, options = {}) {
   }
 
   let session = workspace && workspaceKey
-    ? new WorkspaceSession(workspace, workspaceKey, configuredRelayUrl, options)
+    ? new WorkspaceSession(workspace, workspaceKey, configuredRelayUrl, {
+      ...options,
+      relayProtocols: configuredRelayAuthToken ? [`quillcrypt-auth.${configuredRelayAuthToken}`] : options.relayProtocols,
+    })
     : null;
   const rendered = new Map();
   let mirrorPromise = Promise.resolve();
@@ -84,7 +89,10 @@ async function mount(doc, win, storageArea, options = {}) {
   function activateWorkspace(acceptedWorkspace, acceptedKey) {
     if (!configuredRelayUrl) return;
     session?.dispose();
-    session = new WorkspaceSession(acceptedWorkspace, acceptedKey, configuredRelayUrl, options);
+    session = new WorkspaceSession(acceptedWorkspace, acceptedKey, configuredRelayUrl, {
+      ...options,
+      relayProtocols: configuredRelayAuthToken ? [`quillcrypt-auth.${configuredRelayAuthToken}`] : options.relayProtocols,
+    });
     for (const annotation of currentAnnotations) session.addAnnotation(annotation);
     session.onAnnotationsChange(renderCurrentAnnotations);
   }
