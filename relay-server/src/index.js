@@ -15,5 +15,19 @@ const { startPersistentRelay } = require('./persistentRelay');
 
 const PORT = process.env.PORT || 8123;
 const DATA_PATH = process.env.RELAY_DATA_PATH || null;
-startPersistentRelay(PORT, { persistencePath: DATA_PATH });
+const AUTH_TOKEN = process.env.RELAY_AUTH_TOKEN || null;
+const ALLOWED_ORIGINS = process.env.RELAY_ALLOWED_ORIGINS
+  ? process.env.RELAY_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : null;
+const MAX_PAYLOAD = Number(process.env.RELAY_MAX_PAYLOAD || 1024 * 1024);
+const MAX_ROOMS = Number(process.env.RELAY_MAX_ROOMS || Infinity);
+const MAX_CLIENTS_PER_ROOM = Number(process.env.RELAY_MAX_CLIENTS_PER_ROOM || Infinity);
+startPersistentRelay(PORT, {
+  persistencePath: DATA_PATH,
+  authToken: AUTH_TOKEN,
+  allowedOrigins: ALLOWED_ORIGINS,
+  maxPayload: MAX_PAYLOAD,
+  maxRooms: MAX_ROOMS,
+  maxClientsPerRoom: MAX_CLIENTS_PER_ROOM,
+});
 console.log(`Quillcrypt relay (with persistence) listening on ws://localhost:${PORT}`);

@@ -24,7 +24,29 @@ const COMPACTION_THRESHOLD = 50; // merge the log once it grows past this many e
 function startPersistentRelay(port, options = {}) {
   const compactionThreshold = options.compactionThreshold ?? COMPACTION_THRESHOLD;
   const persistencePath = options.persistencePath || null;
-  const wss = new WebSocket.Server({ port });
+  const maxPayload = options.maxPayload ?? 1024 * 1024;
+  const authToken = options.authToken || null;
+  const allowedOrigins = options.allowedOrigins || null;
+  const maxRooms = options.maxRooms ?? Infinity;
+  const maxClientsPerRoom = options.maxClientsPerRoom ?? Infinity;
+  const authProtocol = authToken ? `quillcrypt-auth.${authToken}` : null;
+  const wss = new WebSocket.Server({
+    port,
+    maxPayload,
+    handleProtocols: (protocols) => {
+      const requested = Array.from(protocols);
+      return requested.find((protocol) => protocol === authProtocol) || requested[0] || '';
+    },
+    verifyClient: ({ origin, req }, done) => {
+      if (allowedOrigins && !allowedOrigins.includes(origin)) return done(false, 403, 'Origin not allowed');
+      const requestedProtocols = String(req.headers['sec-websocket-protocol'] || '')
+        .split(',').map((protocol) => protocol.trim()).filter(Boolean);
+      const headerAuthorized = req.headers.authorization === `Bearer ${authToken}`;
+      const protocolAuthorized = authToken && requestedProtocols.includes(authProtocol);
+      if (authToken && !headerAuthorized && !protocolAuthorized) return done(false, 401, 'Unauthorized');
+      done(true);
+    },
+  });
   const rooms = new Map(); // roomId -> Set<ws>
   const roomLogs = loadRoomLogs(persistencePath);
 
@@ -54,8 +76,18 @@ function startPersistentRelay(port, options = {}) {
 
   wss.on('connection', (ws, req) => {
     const roomId = new URL(req.url, 'http://localhost').searchParams.get('room') || 'default';
+    if (!rooms.has(roomId) && rooms.size >= maxRooms) {
+      ws.close(1008, 'Room limit reached');
+      return;
+    }
     if (!rooms.has(roomId)) rooms.set(roomId, new Set());
-    rooms.get(roomId).add(ws);
+    const room = rooms.get(roomId);
+    if (room.size >= maxClientsPerRoom) {
+      ws.close(1008, 'Client limit reached');
+      if (room.size === 0) rooms.delete(roomId);
+      return;
+    }
+    room.add(ws);
 
     // Catch-up: replay everything stored for this room to the new connection,
     // whether it's reconnecting after a drop or joining for the very first time.

@@ -42,8 +42,9 @@ this list, not caught earlier — flagged plainly rather than glossed over.
 5. **No real product screenshots exist** (QC-64) — blocked on item 0, same as item 1.
 
 6. **Relay persistence is now file-backed when `RELAY_DATA_PATH` is configured** — histories
-   survive a relay restart and remain opaque base64-encoded bytes on disk. Retention limits,
-   backups, and database-backed multi-process operation still need production hardening.
+   survive a relay restart and remain opaque base64-encoded bytes on disk. Optional bearer auth,
+   origin checks, payload limits, and room/client limits are also available. Retention limits,
+   backups, health checks, and graceful shutdown still need production hardening.
 
 7. ~~**No DOM rendering wired up for toolbar/settings/onboarding.**~~ — **RESOLVED, but see
    item 0.** The three UI *components* are real and tested:

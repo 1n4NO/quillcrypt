@@ -299,6 +299,11 @@ operations remain future hardening work.
 - health/readiness signals cover storage and relay availability;
 - graceful shutdown drains or clearly rejects new connections without corrupting persisted state.
 
+**Status:** the production entry point now supports optional bearer-token authorization, origin
+allowlisting, maximum frame size, room limits, and per-room client limits through environment
+variables. Rate limiting, health/readiness endpoints, structured redacted logs, and graceful
+drain behavior remain.
+
 ## Phase 3 - Security, privacy, and trust
 
 Goal: make the public privacy and E2EE claims match independently reviewed behavior.

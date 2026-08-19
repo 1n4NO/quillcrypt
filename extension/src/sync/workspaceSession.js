@@ -35,9 +35,11 @@ class WorkspaceSession {
       WebSocketImpl: encryptedWebSocket,
       minBackoff: options.minBackoff,
       maxBackoff: options.maxBackoff,
+      protocols: options.relayProtocols,
     });
     this.presence = new PresenceClient(roomUrl(relayUrl, `${room}:presence`), this.WebSocketImpl, {
       initialState: options.presenceState || {},
+      protocols: options.relayProtocols,
     });
   }
 

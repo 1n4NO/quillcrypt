@@ -32,6 +32,7 @@ class SyncClient {
     this.minBackoff = options.minBackoff ?? 500;
     this.maxBackoff = options.maxBackoff ?? 30000;
     this.backoffFactor = options.backoffFactor ?? 2;
+    this.protocols = options.protocols;
 
     this._queue = [];
     this._ws = null;
@@ -66,7 +67,7 @@ class SyncClient {
 
   _connect() {
     this._setStatus(this._reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
-    const ws = new this.WebSocketImpl(this.url);
+    const ws = this.protocols ? new this.WebSocketImpl(this.url, this.protocols) : new this.WebSocketImpl(this.url);
     this._ws = ws;
 
     ws.addEventListener('open', () => {

@@ -24,12 +24,13 @@ class PresenceClient {
     this.heartbeatMs = options.heartbeatMs ?? 3000;
     this.timeoutMs = options.timeoutMs ?? 8000;
     this.pruneIntervalMs = options.pruneIntervalMs ?? 1000;
+    this.protocols = options.protocols;
 
     this._localState = options.initialState || {};
     this._peers = new Map(); // clientId -> { state, lastSeen }
     this._peerChangeListeners = new Set();
 
-    this._ws = new WebSocketImpl(url);
+    this._ws = this.protocols ? new WebSocketImpl(url, this.protocols) : new WebSocketImpl(url);
     this._ws.addEventListener('open', () => {
       this._broadcast();
       this._heartbeatTimer = setInterval(() => this._broadcast(), this.heartbeatMs);
