@@ -131,6 +131,12 @@
 .qc-settings-backup p { font-size: 11px; color: #8a4d10; margin: 4px 0 8px; }
 .qc-settings-backup input, .qc-settings-backup button { margin: 0 6px 6px 0; padding: 6px 8px; }
 .qc-settings-backup-status { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .qc-settings button, .qc-settings input, .qc-settings select { transition: none; scroll-behavior: auto; }
+}
+@media (forced-colors: active) {
+  .qc-settings, .qc-settings button, .qc-settings input, .qc-settings select { border-color: CanvasText; background: Canvas; color: CanvasText; }
+}
 
 .qc-settings-members { margin: 0 0 16px; }
 .qc-settings-members h3 { font-size: 13px; margin: 0 0 8px; }

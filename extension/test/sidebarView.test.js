@@ -23,4 +23,11 @@ sidebar.update(annotations);
 assert.equal(host.querySelectorAll('.qc-sidebar-item').length, 0, 'filter remains applied after update');
 sidebar.dispose();
 assert.equal(host.querySelector('.qc-sidebar'), null);
-console.log('PASS — sidebar renders, filters, updates, and disposes');
+
+const orphanHost = document.createElement('div');
+const orphan = { id: 'orphan-1', type: 'highlight', anchor: { exact: 'text no longer present', position: { start: 0, end: 20 } }, createdAt: new Date().toISOString() };
+const orphanSidebar = mountSidebar(orphanHost, [orphan], { orphanedIds: ['orphan-1'] });
+assert.match(orphanHost.querySelector('.qc-sidebar-item').textContent, /Anchor not found/);
+assert.ok(orphanHost.querySelector('.qc-sidebar-retry'));
+orphanSidebar.dispose();
+console.log('PASS — sidebar renders, filters, updates, and surfaces orphaned anchors');

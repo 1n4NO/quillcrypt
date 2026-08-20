@@ -392,6 +392,10 @@ Goal: verify the product in real browsers for real people and real pages.
 - color contrast and non-color states pass WCAG AA targets;
 - reduced-motion and high-zoom layouts remain usable.
 
+**Status:** sidebar orphan states, focus restoration, live status messaging, forced-colors and
+reduced-motion styles are implemented and tested. Real keyboard, screen-reader, contrast, and
+high-zoom verification remains tracked in `docs/BROWSER_QA.md`.
+
 ### QC-NEXT-041 - Anchoring and hostile-page resilience *(Story, M)*
 
 **Problem:** anchoring has documented failure modes, while arbitrary pages can mutate, virtualize,
@@ -409,6 +413,10 @@ Goal: verify the product in real browsers for real people and real pages.
 - shadow DOM/iframe behavior is explicitly supported or clearly excluded in product copy;
 - mutation observers are disconnected and bounded to avoid page performance regressions.
 
+**Status:** orphaned annotations are surfaced with retry actions; debounced retries now respond to
+relevant late DOM mutations and SPA history/hash routes, and restore all patched listeners on
+teardown. Hostile-page and real-browser coverage remains in `docs/BROWSER_QA.md`.
+
 ### QC-NEXT-042 - Real-browser performance budget *(Task, M)*
 
 **Problem:** current performance numbers are Node benchmarks, not browser measurements on real
@@ -425,6 +433,9 @@ Goal: verify the product in real browsers for real people and real pages.
 - memory does not grow without bound after repeated page navigation/reinjection;
 - performance findings produce either fixes or explicit supported-page limits.
 
+**Status:** browser measurement scenarios and evidence requirements are documented in
+`docs/BROWSER_QA.md`; real profiling is still a manual release gate.
+
 ### QC-NEXT-043 - Browser compatibility and release regression suite *(Task, M)*
 
 **Problem:** browser support is split across manifests, but there is no repeatable matrix for
@@ -438,6 +449,9 @@ Goal: verify the product in real browsers for real people and real pages.
 - release smoke covers install, update, reload, uninstall/reinstall, and storage migration;
 - browser-specific failures are tagged with a clear adapter or manifest owner;
 - every release candidate has a tested artifact checksum.
+
+**Status:** Chrome/Firefox artifact commands and a release smoke matrix are documented in
+`docs/BROWSER_QA.md`; actual browser runs and checksum recording remain outstanding.
 
 ## Phase 5 - Landing page and public launch
 

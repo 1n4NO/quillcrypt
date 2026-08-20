@@ -21,6 +21,7 @@ const { renderAnnotation, removeAnnotationElement } = require('./annotationRende
 const { AnnotationEditController } = require('../models/editController');
 const { OnboardingState } = require('../ui/onboarding');
 const { mountOnboarding } = require('../ui/onboardingView');
+const { mountRetryObserver } = require('./retryObserver');
 
 /**
  * The real mount function, composing every module built and individually
@@ -109,10 +110,13 @@ async function mount(doc, win, storageArea, options = {}) {
     for (const annotation of annotations) {
       if (rendered.has(annotation.id)) continue;
       const ok = renderAnnotation(doc.body, overlaySvg, noteLayer, annotation);
-      if (ok) rendered.set(annotation.id, annotation);
-      else if (!failedToRender.includes(annotation.id)) failedToRender.push(annotation.id);
+      if (ok) {
+        rendered.set(annotation.id, annotation);
+        const failedIndex = failedToRender.indexOf(annotation.id);
+        if (failedIndex !== -1) failedToRender.splice(failedIndex, 1);
+      } else if (!failedToRender.includes(annotation.id)) failedToRender.push(annotation.id);
     }
-    sidebar?.update(annotations);
+    sidebar?.update(annotations, failedToRender);
     if (session) {
       // Yjs can deliver several updates in one turn. Keep the local mirror
       // ordered so a slower earlier write cannot overwrite a newer snapshot.
@@ -159,7 +163,11 @@ async function mount(doc, win, storageArea, options = {}) {
   const disposeToolbar = mountToolbar(toolbarHost, toolbarState, {
     onSidebarToggle: () => {
       if (sidebar) disposeSidebar();
-      else sidebar = mountSidebar(sidebarHost, currentAnnotations, { onClose: disposeSidebar });
+      else sidebar = mountSidebar(sidebarHost, currentAnnotations, {
+        onClose: disposeSidebar,
+        orphanedIds: failedToRender,
+        onRetry: () => renderCurrentAnnotations(currentAnnotations),
+      });
     },
   });
   doc.body.appendChild(sidebarHost);
@@ -193,6 +201,10 @@ async function mount(doc, win, storageArea, options = {}) {
   }
 
   const runtime = options.runtime;
+  const disposeRetryObserver = mountRetryObserver(doc, win, {
+    hasOrphans: () => failedToRender.length > 0,
+    retry: () => renderCurrentAnnotations(currentAnnotations),
+  });
   const handleRuntimeMessage = runtime?.onMessage?.addListener
     ? (message) => message?.type === 'QC_OPEN_SETTINGS' ? toggleSettings().then(() => ({ ok: true })) : undefined
     : null;
@@ -247,6 +259,7 @@ async function mount(doc, win, storageArea, options = {}) {
       settingsDispose = null;
       disposeInteractions();
       disposeOnboarding();
+      disposeRetryObserver();
       session?.dispose();
       toolbarHost.remove();
       onboardingHost.remove();

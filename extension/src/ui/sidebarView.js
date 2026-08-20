@@ -3,11 +3,13 @@
 const { buildSidebarItems, filterSidebarItems } = require('./sidebar');
 const { locateAsRange } = require('../content/anchoring/rangeAnchoring');
 
-function mountSidebar(container, annotations = [], { onClose } = {}) {
+function mountSidebar(container, annotations = [], { onClose, onRetry, orphanedIds = [] } = {}) {
   const doc = container.ownerDocument;
   const root = doc.createElement('aside');
   root.className = 'qc-sidebar';
   root.setAttribute('aria-label', 'Annotations');
+  root.setAttribute('tabindex', '-1');
+  const previousFocus = doc.activeElement;
 
   const header = doc.createElement('div');
   header.className = 'qc-sidebar-header';
@@ -31,13 +33,18 @@ function mountSidebar(container, annotations = [], { onClose } = {}) {
   const empty = doc.createElement('p');
   empty.className = 'qc-sidebar-empty';
   empty.textContent = 'No annotations on this page.';
-  root.append(header, search, list, empty);
+  const status = doc.createElement('p');
+  status.className = 'qc-sidebar-status';
+  status.setAttribute('role', 'status');
+  root.append(header, search, list, empty, status);
   container.appendChild(root);
+  search.focus?.();
 
   let current = annotations.slice();
+  let orphaned = new Set(orphanedIds);
   function render() {
     list.replaceChildren();
-    const items = filterSidebarItems(buildSidebarItems(current), search.value);
+    const items = filterSidebarItems(buildSidebarItems(current).map((item) => ({ ...item, orphaned: orphaned.has(item.id) })), search.value);
     empty.hidden = items.length !== 0;
     for (const item of items) {
       const row = doc.createElement('li');
@@ -45,15 +52,28 @@ function mountSidebar(container, annotations = [], { onClose } = {}) {
       button.type = 'button';
       button.className = 'qc-sidebar-item';
       button.dataset.annotationId = item.id;
-      button.textContent = item.excerpt;
-      button.title = item.excerpt;
+      button.classList.toggle('qc-sidebar-item-orphaned', item.orphaned);
+      button.textContent = item.orphaned ? `Anchor not found · ${item.excerpt}` : item.excerpt;
+      button.title = item.orphaned ? 'This annotation could not be located in the current page. Retry after the page finishes loading.' : item.excerpt;
+      button.setAttribute('aria-label', item.orphaned ? `Orphaned annotation: ${item.excerpt}` : item.excerpt);
       button.addEventListener('click', () => {
+        if (item.orphaned) {
+          status.textContent = 'This anchor is not currently in the page. Retry after loading more content or changing the page view.';
+          return;
+        }
         const annotation = current.find((candidate) => candidate.id === item.id);
         if (!annotation?.anchor) return;
         const range = locateAsRange(doc.body, annotation.anchor);
         range?.startContainer?.parentElement?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
       });
       row.appendChild(button);
+      if (item.orphaned) {
+        const retry = doc.createElement('button');
+        retry.type = 'button'; retry.className = 'qc-sidebar-retry'; retry.textContent = 'Retry';
+        retry.setAttribute('aria-label', `Retry anchor for ${item.excerpt}`);
+        retry.addEventListener('click', () => { status.textContent = 'Retrying anchor…'; onRetry?.(item.id); });
+        row.appendChild(retry);
+      }
       list.appendChild(row);
     }
   }
@@ -61,8 +81,11 @@ function mountSidebar(container, annotations = [], { onClose } = {}) {
   render();
 
   return {
-    update(nextAnnotations) { current = nextAnnotations.slice(); render(); },
-    dispose() { root.remove(); },
+    update(nextAnnotations, nextOrphanedIds = orphaned) { current = nextAnnotations.slice(); orphaned = new Set(nextOrphanedIds); render(); },
+    dispose() {
+      root.remove();
+      if (previousFocus?.isConnected) previousFocus.focus?.();
+    },
   };
 }
 
