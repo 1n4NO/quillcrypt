@@ -11,8 +11,9 @@ then `npm run release:verify` to create versioned archives and their SHA-256 rec
 
 Before publishing, replace the deployment-owned URLs in `release-config.js` with the approved
 Firefox/Chrome store or release URLs. Store URLs open normally; archive URLs retain download
-behavior. Keep the version in the root package, extension package, manifests, and landing URLs
-aligned; `npm run release:verify` checks the package and manifest copies.
+behavior. Keep the version in the root package, workspace lockfile, extension/relay packages,
+manifests, and landing URLs aligned with `npm run version:sync`; `npm run release:verify` checks
+the complete set and the built archives.
 
 `npm run test:landing` checks local links, metadata assets, demo CTA removal, and the no-external-font
 guarantee. The canonical/social host is currently `https://quillcrypt.dev/`; update it in both HTML

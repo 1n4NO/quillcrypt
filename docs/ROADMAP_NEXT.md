@@ -515,10 +515,13 @@ release gates.
 
 **Depends on:** QC-NEXT-002, QC-NEXT-010.
 
-**Status:** version consistency is validated across the root package, extension package, and all
-browser manifests. Firefox and Chrome builds produce versioned archives, and
-`npm run release:verify` records SHA-256 checksums under the ignored artifact directory. Release
-notes and a committed one-source version migration are still outstanding.
+**Status:** implemented for the 0.1.0 candidate. The root `package.json` is the version source;
+`npm run version:sync` and the build lifecycle synchronize the extension package, browser
+manifests, and landing archive URLs. Firefox and Chrome builds produce versioned archives,
+`npm run release:verify` records SHA-256 checksums and rejects unexpected archive contents. The
+archive writer uses sorted files and fixed ZIP timestamps so repeated builds are checksum-stable.
+`docs/RELEASE_NOTES_0.1.0.md` records known limitations and supported build targets. A future
+release still needs its own notes, QA evidence, and store URLs.
 
 ### QC-NEXT-053 - Store submission and launch operations *(Task, M)*
 
@@ -537,6 +540,10 @@ notes and a committed one-source version migration are still outstanding.
 - launch decision is recorded with explicit owners for remaining non-blocking risks.
 
 **Depends on:** QC-NEXT-030, QC-NEXT-050 through QC-NEXT-052.
+
+**Status:** `docs/LAUNCH_RUNBOOK.md` now covers owners, pre-launch gates, rollback, incident
+response, and the launch decision record. Store submission, account ownership, relay deployment,
+and support assignment remain manual launch actions.
 
 ## Phase 6 - Post-launch hardening
 

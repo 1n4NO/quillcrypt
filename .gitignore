@@ -9,6 +9,7 @@ build/
 *.xpi
 web-ext-artifacts/
 extension/chrome-dist/
+extension/firefox-dist/
 
 # Env / secrets
 .env

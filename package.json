@@ -12,6 +12,7 @@
     "test:extension": "npm run test --workspace=extension",
     "test:relay": "npm run test --workspace=relay-server",
     "test:landing": "node quillcrypt-landing/verify.mjs",
+    "version:sync": "node scripts/sync-version.mjs",
     "release:verify": "npm run verify:release --workspace=extension"
   }
 }

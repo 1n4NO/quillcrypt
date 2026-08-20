@@ -3,20 +3,24 @@
 **Status: prep checklist. Actual submission is a manual action requiring a Mozilla Add-ons
 developer account and the built `.xpi` — neither of which this document can produce.**
 
+Candidate release notes are in `docs/RELEASE_NOTES_0.1.0.md`; the launch, rollback, and incident
+procedure is in `docs/LAUNCH_RUNBOOK.md`.
+
 ## Pre-submission checklist
 
-- [ ] `web-ext lint` passes clean (`cd extension && npm run lint`)
-- [ ] `web-ext build` produces a valid `.xpi` (`cd extension && npm run build`)
-- [ ] `manifest.json` version number bumped and matches what's being submitted
-- [ ] Icons exported as real PNGs (16/48/128px) — see the note left in an earlier session
-      about `extension/manifest.json` still pointing at PNG paths that need generating from
-      `logo/quillcrypt-mark.svg`
+- [x] `web-ext lint` passes clean (`npm run lint --workspace=extension`)
+- [x] Firefox packaging produces a versioned ZIP install archive (`npm run build:firefox --workspace=extension`)
+- [x] `manifest.json` version matches the root package after `npm run version:sync`
+- [x] Icons are real PNGs at 16/48/128px under `extension/icons/`
+- [x] Chrome packaging and SHA-256 verification pass through `npm run release:verify`
 - [ ] Privacy policy (`docs/PRIVACY_POLICY.md`) is linked from the store listing and from
       within the extension's settings page
 - [ ] QC-23's manual browser QA pass is complete (scroll/resize/zoom/lazy-load) — don't submit
       with this still outstanding
 - [ ] QC-47's external security audit has at least been scoped, ideally completed, before
       making the E2EE claim in the public store listing
+- [ ] Store screenshots are captured from the tested extension artifacts and redacted
+- [ ] A support owner, relay owner, and rollback owner are assigned in `docs/LAUNCH_RUNBOOK.md`
 
 ## Permissions Mozilla reviewers will scrutinize
 

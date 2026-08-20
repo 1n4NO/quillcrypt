@@ -5,10 +5,14 @@
   "description": "Firefox extension: collaborative, end-to-end encrypted web annotation.",
   "scripts": {
     "dev": "web-ext run",
-    "build": "node scripts/build.mjs && node scripts/verify-bundles.mjs && web-ext build --overwrite-dest",
-    "build:firefox": "node scripts/build.mjs && node scripts/verify-bundles.mjs && web-ext build --overwrite-dest",
-    "build:chrome": "node scripts/build.mjs --chrome && node scripts/verify-bundles.mjs --chrome && node scripts/package-chrome.mjs",
+    "prebuild": "node ../scripts/sync-version.mjs",
+    "build": "node scripts/build.mjs && node scripts/verify-bundles.mjs && node scripts/package-extension.mjs --browser=firefox",
+    "prebuild:firefox": "node ../scripts/sync-version.mjs",
+    "build:firefox": "node scripts/build.mjs && node scripts/verify-bundles.mjs && node scripts/package-extension.mjs --browser=firefox",
+    "prebuild:chrome": "node ../scripts/sync-version.mjs",
+    "build:chrome": "node scripts/build.mjs --chrome && node scripts/verify-bundles.mjs --chrome && node scripts/package-extension.mjs --browser=chrome",
     "verify:bundles": "node scripts/verify-bundles.mjs",
+    "preverify:release": "node ../scripts/sync-version.mjs",
     "verify:release": "node scripts/verify-release.mjs",
     "lint": "web-ext lint",
     "test": "node test/anchoring.test.js && node test/rangeAnchoring.test.js && node test/readiness.test.js && node test/annotation.test.js && node test/store.test.js && node test/keyExchange.test.js && node test/textDecoration.test.js && node test/shapeTools.test.js && node test/toolsAndUndo.test.js && node test/overlayAndSidebar.test.js && node test/annotationYDoc.test.js && node test/syncClient.test.js && node test/presenceClient.test.js && node test/conflictQA.test.js && node test/workspace.test.js && node test/invite.test.js && node test/relayPersistence.test.js && node test/primitives.test.js && node test/encryptedSync.test.js && node test/membership.test.js && node test/rotation.test.js && node test/keyStore.test.js && node test/keyBackup.test.js && node test/eventStream.test.js && node test/integrations.test.js && node test/exportAnnotations.test.js && node test/memberManagementAndScoping.test.js && node test/onboardingAndSettings.test.js && node test/accessibility.test.js && node test/perf/benchmarks.test.js && node test/toolbarView.test.js && node test/settingsAndOnboardingView.test.js && node test/memberManagementView.test.js && node test/annotationRenderer.test.js && node test/contentScriptMount.test.js && node test/toolInteractions.test.js && node test/webExtensionStorage.test.js && node test/workspaceSession.test.js && node test/backgroundMessages.test.js && node test/sidebarView.test.js && node test/retryObserver.test.js"

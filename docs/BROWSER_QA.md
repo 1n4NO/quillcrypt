@@ -8,8 +8,8 @@ Do not mark the manual items complete from jsdom or bundle tests.
 - Firefox: `npm run build:firefox --workspace=extension`, then install the generated archive.
 - Chrome: `npm run build:chrome --workspace=extension`, then load `extension/chrome-dist` as
   an unpacked extension.
-- Run `npm run release:verify` after both builds; it writes the archive SHA-256 record to
-  `extension/web-ext-artifacts/quillcrypt-<version>-SHA256SUMS.txt`.
+- Run `npm run release:verify` after both builds; it checks the install payload and writes the
+  archive SHA-256 record to `extension/web-ext-artifacts/quillcrypt-<version>-SHA256SUMS.txt`.
 - Record the browser version, OS, date, and the checksum-file contents for every release candidate.
 
 ## Chrome and Firefox smoke matrix

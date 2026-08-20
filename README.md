@@ -17,14 +17,15 @@ development; see `docs/LAUNCH_READINESS.md`).
 - `docs/` — implementation plan, roadmap, architecture notes, privacy policy, security docs
 
 The historical implementation plan is in `docs/ROADMAP.md`. The active release plan, including
-remaining blockers and detailed acceptance criteria, is in `docs/ROADMAP_NEXT.md`.
+remaining blockers and detailed acceptance criteria, is in `docs/ROADMAP_NEXT.md`. Candidate
+release notes and the production launch procedure are in `docs/RELEASE_NOTES_0.1.0.md` and
+`docs/LAUNCH_RUNBOOK.md`.
 
 ## Status
 
-All 67 tickets across all 5 phases in `docs/ROADMAP.md` are done. See
-`docs/LAUNCH_READINESS.md` for the honest go/no-go view of what's left before public launch —
-a few items (icon PNGs, real UI wired to the tested logic layers, manual browser QA, the
-actual external security audit) are either just finished or still genuinely open.
+The implementation is release-candidate ready for automated checks, but not approved for public
+launch. See `docs/LAUNCH_READINESS.md` for the remaining real-browser QA, screenshot, external
+audit, relay-operations, and store-submission gates.
 
 ## Getting started
 
@@ -49,6 +50,10 @@ npm test
 To build the extension for Chrome, run `npm run build:chrome --workspace=extension` and
 load `extension/chrome-dist/` as an unpacked extension. The regular `npm run build:firefox
 --workspace=extension` command produces the Firefox package.
+
+The root `package.json` is the release version source. Run `npm run version:sync` when changing
+versions; the browser build lifecycle also synchronizes package, manifest, and landing archive
+versions. Run `npm run release:verify` after both builds to record artifact checksums.
 
 If you haven't already:
 

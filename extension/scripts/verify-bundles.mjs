@@ -2,7 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const extensionRoot = path.resolve(new URL('.', import.meta.url).pathname, '..');
-const outputRoot = process.argv.includes('--chrome') ? path.join(extensionRoot, 'chrome-dist') : extensionRoot;
+const outputRoot = process.argv.includes('--chrome') ? path.join(extensionRoot, 'chrome-dist') : path.join(extensionRoot, 'firefox-dist');
 const bundlePaths = [
   path.join(outputRoot, 'dist/content-script.js'),
   path.join(outputRoot, 'dist/background.js'),
