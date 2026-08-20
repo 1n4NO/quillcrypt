@@ -57,11 +57,20 @@ function renderWorkspaceRow(doc, summary, { onLeave, onAddPage }) {
   return row;
 }
 
-async function mountSettings(container, settingsController) {
+async function mountSettings(container, settingsController, { onClose } = {}) {
   const doc = container.ownerDocument;
 
   const root = doc.createElement('div');
   root.className = 'qc-settings';
+
+  const close = doc.createElement('button');
+  close.type = 'button';
+  close.className = 'qc-settings-close';
+  close.setAttribute('aria-label', 'Close settings');
+  close.title = 'Close settings';
+  close.textContent = '×';
+  close.addEventListener('click', () => onClose?.());
+  root.appendChild(close);
 
   const heading = doc.createElement('h2');
   heading.className = 'qc-settings-heading';

@@ -28,12 +28,14 @@ function attachToolInteractions({
   store,
   url,
   onAnnotationCreated,
+  onNoteRequest,
   render = true,
   getSelection = () => doc.defaultView.getSelection(),
   promptForNoteContent = () => doc.defaultView.prompt('Note text:') || '',
 }) {
   let dragStart = null;
   let dragPoints = null;
+  let noteClickStart = null;
 
   function documentPoint(event) {
     return {
@@ -53,9 +55,16 @@ function attachToolInteractions({
     if (!SELECTION_TOOLS.includes(tool)) return;
 
     const selection = getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    if (range.collapsed) return;
+    const hasSelection = selection && !selection.isCollapsed && selection.rangeCount > 0;
+    const range = hasSelection ? selection.getRangeAt(0) : null;
+
+    if (tool === 'note' && !hasSelection) {
+      const point = noteClickStart;
+      noteClickStart = null;
+      if (point && onNoteRequest) await onNoteRequest(point, null);
+      return;
+    }
+    if (!range || range.collapsed) return;
 
     if (!root.contains(range.commonAncestorContainer)) return;
     if (tool === 'highlight' && hasExistingInlineDecoration(root, range, '.qc-highlight')) {
@@ -71,6 +80,13 @@ function attachToolInteractions({
       selection.removeAllRanges();
       return;
     }
+    if (tool === 'note' && onNoteRequest) {
+      const point = noteClickStart || { x: range.getBoundingClientRect?.().left || 0, y: range.getBoundingClientRect?.().top || 0 };
+      noteClickStart = null;
+      selection.removeAllRanges();
+      await onNoteRequest(point, anchor);
+      return;
+    }
     const content = tool === 'note' ? promptForNoteContent() : null;
     const record = createAnnotation({ type: tool, anchor, content, style: { color: toolbarState.getState().color } });
 
@@ -80,6 +96,17 @@ function attachToolInteractions({
 
   function handleMouseDown(event) {
     const tool = toolbarState.getState().activeTool;
+    if (event.target?.closest?.('.qc-toolbar, .qc-sidebar, .qc-note-editor, .qc-settings-host')) {
+      // A drawer interaction is UI chrome, never the start of an annotation.
+      noteClickStart = null;
+      dragStart = null;
+      dragPoints = null;
+      return;
+    }
+    if (tool === 'note') {
+      noteClickStart = documentPoint(event);
+      return;
+    }
     if (!DRAG_TOOLS.includes(tool)) return;
     dragStart = documentPoint(event);
     dragPoints = [dragStart];
@@ -110,10 +137,14 @@ function attachToolInteractions({
       geometry = ellipseGeometry(dragStart.x, dragStart.y, end.x, end.y);
     }
 
+    const movedDistance = dragStart ? Math.hypot(end.x - dragStart.x, end.y - dragStart.y) : 0;
     dragStart = null;
     dragPoints = null;
 
     if (!geometry) return; // not a drag tool
+    // A click is not a shape annotation. Require a small but intentional
+    // drag so toolbar taps and page clicks never create zero-size records.
+    if (movedDistance < 3) return;
     const record = createAnnotation({ type: tool, geometry, style });
     await persistAndRender(record);
   }

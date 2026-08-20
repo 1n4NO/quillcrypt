@@ -80,3 +80,16 @@
   margin: 0 8px 0 4px;
   accent-color: #f5c542;
 }
+
+.qc-toolbar-sidebar-button {
+  min-width: 36px;
+  height: 32px;
+  margin-left: 2px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #d8d4c8;
+  cursor: pointer;
+}
+.qc-toolbar-sidebar-button:hover { background: rgba(255, 255, 255, 0.08); }

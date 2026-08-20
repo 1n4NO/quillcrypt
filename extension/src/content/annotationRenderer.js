@@ -4,7 +4,6 @@ const { applyHighlight, removeHighlight } = require('../tools/highlight');
 const { applyUnderline, removeUnderline } = require('../tools/underline');
 const { pointsToSvgPath } = require('../tools/draw');
 const { computeArrowGeometry } = require('../tools/arrow');
-const { computeNotePosition } = require('../tools/note');
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -44,23 +43,36 @@ function renderAnnotation(root, overlaySvg, noteLayer, annotation) {
   }
 
   if (annotation.type === 'note') {
-    let anchorRect = { top: 100, left: 100, right: 100, bottom: 100 }; // fallback if unanchored
+    let x = 100;
+    let y = 100;
+    const scrollX = doc.defaultView?.scrollX || 0;
+    const scrollY = doc.defaultView?.scrollY || 0;
     if (annotation.anchor) {
       const range = locateAsRange(root, annotation.anchor);
       if (!range) return false;
-      anchorRect = range.getBoundingClientRect ? range.getBoundingClientRect() : anchorRect;
+      const rect = range.getBoundingClientRect ? range.getBoundingClientRect() : null;
+      if (rect) {
+        x = rect.right + scrollX + 12;
+        y = rect.top + scrollY;
+      }
+    } else if (annotation.geometry) {
+      x = annotation.geometry.x;
+      y = annotation.geometry.y;
     }
-    const viewport = { width: doc.defaultView?.innerWidth || 1200, height: doc.defaultView?.innerHeight || 800 };
-    const pos = computeNotePosition(anchorRect, viewport);
     const bubble = doc.createElement('div');
     bubble.className = 'qc-note-bubble';
     bubble.dataset.annotationId = annotation.id;
     bubble.dataset.quillcryptTooltip = annotation.content || 'Note annotation';
-    bubble.style.position = 'fixed';
-    bubble.style.left = `${pos.x}px`;
-    bubble.style.top = `${pos.y}px`;
-    bubble.style.width = `${pos.width}px`;
-    bubble.textContent = annotation.content || '';
+    bubble.style.position = 'absolute';
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+    bubble.style.width = '240px';
+    const title = annotation.title ? doc.createElement('strong') : null;
+    if (title) { title.className = 'qc-note-title'; title.textContent = annotation.title; }
+    const text = doc.createElement('div');
+    text.className = 'qc-note-content';
+    text.textContent = annotation.content || '';
+    bubble.replaceChildren(...(title ? [title, text] : [text]));
     noteLayer.appendChild(bubble);
     return true;
   }

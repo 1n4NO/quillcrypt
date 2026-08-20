@@ -64,7 +64,7 @@ function createIcon(doc, tool) {
  * Mount a toolbar into `container`, wired to `toolbarState`.
  * Returns a dispose() function that unsubscribes and clears the DOM.
  */
-function mountToolbar(container, toolbarState, { onSidebarToggle } = {}) {
+function mountToolbar(container, toolbarState, { onSidebarToggle, onSettingsToggle } = {}) {
   const doc = container.ownerDocument;
   const nav = new KeyboardToolbarNav(toolbarState);
 
@@ -123,6 +123,15 @@ function mountToolbar(container, toolbarState, { onSidebarToggle } = {}) {
   sidebarButton.textContent = 'List';
   sidebarButton.addEventListener('click', () => onSidebarToggle?.());
   root.appendChild(sidebarButton);
+
+  const settingsButton = doc.createElement('button');
+  settingsButton.type = 'button';
+  settingsButton.className = 'qc-toolbar-sidebar-button';
+  settingsButton.setAttribute('aria-label', 'Open settings');
+  settingsButton.title = 'Open settings and invite teammates';
+  settingsButton.textContent = '⚙';
+  settingsButton.addEventListener('click', () => onSettingsToggle?.());
+  root.appendChild(settingsButton);
 
   function syncButtonStates(state) {
     for (const [tool, button] of buttons.entries()) {

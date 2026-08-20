@@ -3,7 +3,7 @@
 const { buildSidebarItems, filterSidebarItems } = require('./sidebar');
 const { locateAsRange } = require('../content/anchoring/rangeAnchoring');
 
-function mountSidebar(container, annotations = [], { onClose, onClearAll, onRetry, orphanedIds = [] } = {}) {
+function mountSidebar(container, annotations = [], { onClose, onClearAll, onEdit, onSelect, onRetry, orphanedIds = [] } = {}) {
   const doc = container.ownerDocument;
   const root = doc.createElement('aside');
   root.className = 'qc-sidebar';
@@ -75,11 +75,30 @@ function mountSidebar(container, annotations = [], { onClose, onClearAll, onRetr
           return;
         }
         const annotation = current.find((candidate) => candidate.id === item.id);
-        if (!annotation?.anchor) return;
-        const range = locateAsRange(doc.body, annotation.anchor);
-        range?.startContainer?.parentElement?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        onSelect?.(annotation);
+        if (!onSelect && annotation?.anchor) {
+          const range = locateAsRange(doc.body, annotation.anchor);
+          range?.startContainer?.parentElement?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        }
       });
       row.appendChild(button);
+      const editor = doc.createElement('div');
+      editor.className = 'qc-sidebar-item-editor';
+      const titleInput = doc.createElement('input');
+      titleInput.type = 'text'; titleInput.className = 'qc-sidebar-title'; titleInput.placeholder = 'Title';
+      titleInput.value = item.title;
+      const descriptionInput = doc.createElement('textarea');
+      descriptionInput.className = 'qc-sidebar-description'; descriptionInput.placeholder = 'Description';
+      descriptionInput.value = item.description;
+      const save = doc.createElement('button');
+      save.type = 'button'; save.className = 'qc-sidebar-save'; save.textContent = 'Save';
+      save.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        await onEdit?.(item.id, { title: titleInput.value.trim(), description: descriptionInput.value.trim() });
+        status.textContent = 'Annotation details saved.';
+      });
+      editor.append(titleInput, descriptionInput, save);
+      row.appendChild(editor);
       if (item.orphaned) {
         const retry = doc.createElement('button');
         retry.type = 'button'; retry.className = 'qc-sidebar-retry'; retry.textContent = 'Retry';

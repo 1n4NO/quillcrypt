@@ -21,7 +21,7 @@ const TEXT_ANCHORED_TYPES = ['highlight', 'underline', 'note'];
 const SHAPE_TYPES = ['draw', 'arrow', 'rect', 'ellipse'];
 const ALL_TYPES = [...TEXT_ANCHORED_TYPES, ...SHAPE_TYPES];
 
-function createAnnotation({ type, anchor = null, geometry = null, style = {}, content = null }) {
+function createAnnotation({ type, anchor = null, geometry = null, style = {}, content = null, title = '', description = '' }) {
   if (!ALL_TYPES.includes(type)) {
     throw new Error(`Unknown annotation type: ${type}`);
   }
@@ -36,6 +36,8 @@ function createAnnotation({ type, anchor = null, geometry = null, style = {}, co
     anchor,
     geometry,
     content,
+    title: typeof title === 'string' ? title : '',
+    description: typeof description === 'string' ? description : '',
   };
   const errors = validateAnnotation(record);
   if (errors.length > 0) {
@@ -51,15 +53,18 @@ function validateAnnotation(record) {
   if (!ALL_TYPES.includes(record.type)) errors.push(`unknown type: ${record.type}`);
   if (typeof record.schemaVersion !== 'number') errors.push('missing schemaVersion');
 
-  if (TEXT_ANCHORED_TYPES.includes(record.type) && !record.anchor) {
+  if (['highlight', 'underline'].includes(record.type) && !record.anchor) {
     errors.push(`type "${record.type}" requires an anchor`);
   }
   if (SHAPE_TYPES.includes(record.type) && !record.geometry) {
     errors.push(`type "${record.type}" requires geometry`);
   }
-  if (record.type === 'note' && typeof record.content !== 'string') {
-    errors.push('type "note" requires string content');
+  if (record.type === 'note') {
+    if (!record.anchor && !record.geometry) errors.push('type "note" requires an anchor or point geometry');
+    if (typeof record.content !== 'string') errors.push('type "note" requires string content');
   }
+  if (record.title !== undefined && typeof record.title !== 'string') errors.push('title must be a string');
+  if (record.description !== undefined && typeof record.description !== 'string') errors.push('description must be a string');
   return errors;
 }
 

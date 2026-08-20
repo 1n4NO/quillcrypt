@@ -19,11 +19,13 @@ const { mountSidebar } = require('../ui/sidebarView');
 const { attachToolInteractions } = require('./toolInteractions');
 const { renderAnnotation, removeAnnotationElement } = require('./annotationRenderer');
 const { AnnotationEditController } = require('../models/editController');
+const { createAnnotation } = require('../models/annotation');
 const { OnboardingState } = require('../ui/onboarding');
 const { mountOnboarding } = require('../ui/onboardingView');
 const { mountRetryObserver } = require('./retryObserver');
 const { mountWorkspaceStatus } = require('../ui/workspaceStatusView');
 const { mountAnnotationTooltip } = require('./annotationTooltip');
+const { locateAsRange } = require('./anchoring/rangeAnchoring');
 
 /**
  * The real mount function, composing every module built and individually
@@ -160,16 +162,58 @@ async function mount(doc, win, storageArea, options = {}) {
   }
 
   async function clearCurrentPageAnnotations() {
-    if (currentAnnotations.length === 0) return;
-    const confirmed = typeof win.confirm !== 'function'
-      || win.confirm(`Delete all ${currentAnnotations.length} annotations from this page?`);
+    const count = currentAnnotations.length;
+    const confirmed = count === 0 || typeof win.confirm !== 'function'
+      || win.confirm(`Delete all ${count} annotations from this page?`);
     if (!confirmed) return;
     const toClear = currentAnnotations.slice();
     if (session) {
       toClear.forEach((annotation) => session.deleteAnnotation(annotation.id));
     }
     for (const annotation of toClear) await store.deleteAnnotation(url, annotation.id);
-    if (!session) renderCurrentAnnotations([]);
+    // Remove the rendered layer explicitly as well. This covers note bubbles
+    // and unfinished note editors even if a collaborative session delivers
+    // its empty snapshot on a later turn.
+    rendered.clear();
+    overlaySvg.querySelectorAll('[data-annotation-id]').forEach((element) => element.remove());
+    noteLayer.querySelectorAll('[data-annotation-id], .qc-note-editor').forEach((element) => element.remove());
+    renderCurrentAnnotations([]);
+  }
+
+  async function editAnnotation(id, patch) {
+    if (session) {
+      session.updateAnnotation(id, patch);
+      await store.updateAnnotation(url, id, patch);
+      return;
+    }
+    const updated = await editController.edit(url, id, patch);
+    currentAnnotations = currentAnnotations.map((annotation) => annotation.id === id ? updated : annotation);
+    renderCurrentAnnotations(currentAnnotations);
+  }
+
+  function selectAnnotation(annotation) {
+    let target = null;
+    if (annotation.anchor) {
+      const range = locateAsRange(doc.body, annotation.anchor);
+      if (range) {
+        target = range.startContainer.nodeType === 3
+          ? range.startContainer.parentElement?.closest('[data-quillcrypt-annotation-id]') || range.startContainer.parentElement
+          : range.startContainer.closest?.('[data-quillcrypt-annotation-id]');
+      }
+    }
+    target ||= overlaySvg.querySelector(`[data-annotation-id="${annotation.id}"]`);
+    target ||= noteLayer.querySelector(`[data-annotation-id="${annotation.id}"]`);
+    if (!target) return;
+    const rect = target.getBoundingClientRect?.();
+    if (rect && typeof win.scrollTo === 'function') {
+      win.scrollTo({ top: Math.max(0, rect.top + (win.scrollY || 0) - (win.innerHeight || 800) * 0.35), behavior: 'smooth' });
+    }
+    target.style.setProperty('--qc-annotation-glow-color', annotation.style?.color || '#F5C542');
+    target.classList.add('qc-annotation-glow');
+    win.setTimeout?.(() => {
+      target.classList.remove('qc-annotation-glow');
+      target.style.removeProperty('--qc-annotation-glow-color');
+    }, 4200);
   }
 
   async function mirrorAnnotationsToLocalStore(annotations) {
@@ -212,36 +256,46 @@ async function mount(doc, win, storageArea, options = {}) {
       else sidebar = mountSidebar(sidebarHost, currentAnnotations, {
         onClose: disposeSidebar,
         onClearAll: clearCurrentPageAnnotations,
+        onEdit: editAnnotation,
+        onSelect: selectAnnotation,
         orphanedIds: failedToRender,
         onRetry: () => renderCurrentAnnotations(currentAnnotations),
       });
     },
+    onSettingsToggle: () => toggleSettings(),
   });
   doc.body.appendChild(sidebarHost);
 
   const settingsHost = doc.createElement('div');
   settingsHost.className = 'qc-settings-host';
-  settingsHost.style.position = 'fixed';
-  settingsHost.style.top = '16px';
-  settingsHost.style.left = '16px';
-  settingsHost.style.zIndex = '2147483647';
-  settingsHost.style.maxWidth = 'min(480px, calc(100vw - 32px))';
-  settingsHost.style.maxHeight = 'calc(100vh - 32px)';
-  settingsHost.style.overflow = 'auto';
+  settingsHost.addEventListener('click', (event) => {
+    if (event.target === settingsHost) toggleSettings();
+  });
   settingsHost.hidden = true;
   doc.body.appendChild(settingsHost);
 
   async function toggleSettings() {
     if (settingsDispose) {
-      settingsDispose();
+      const dispose = settingsDispose;
       settingsDispose = null;
-      settingsHost.hidden = true;
+      settingsHost.classList.remove('qc-settings-open');
+      win.setTimeout(() => {
+        dispose();
+        settingsHost.hidden = true;
+      }, 220);
       return;
     }
     if (!settingsOpening) {
       settingsHost.hidden = false;
-      settingsOpening = mountSettings(settingsHost, settingsController)
-        .then((dispose) => { settingsDispose = dispose; })
+      settingsOpening = mountSettings(settingsHost, settingsController, { onClose: toggleSettings })
+        .then((dispose) => {
+          settingsDispose = dispose;
+          // Let the drawer render in its closed transform state first; adding
+          // the open class in the next frame gives the browser a real enter
+          // transition instead of only animating the close path.
+          win.requestAnimationFrame?.(() => settingsHost.classList.add('qc-settings-open'));
+          if (!win.requestAnimationFrame) settingsHost.classList.add('qc-settings-open');
+        })
         .finally(() => { settingsOpening = null; });
     }
     await settingsOpening;
@@ -270,6 +324,7 @@ async function mount(doc, win, storageArea, options = {}) {
   const disposeInteractions = attachToolInteractions({
     doc,
     win,
+    onNoteRequest: (point, anchor) => openNoteEditor(point, anchor),
     root: doc.body,
     overlaySvg,
     noteLayer,
@@ -295,6 +350,70 @@ async function mount(doc, win, storageArea, options = {}) {
   onboardingHost.style.transform = 'translateX(-50%)';
   onboardingHost.style.zIndex = '2147483647';
   doc.body.appendChild(onboardingHost);
+
+  function openNoteEditor(point, anchor) {
+    return new Promise((resolve) => {
+      const editor = doc.createElement('div');
+      editor.className = 'qc-note-editor';
+      editor.style.position = 'fixed';
+      const title = doc.createElement('input');
+      title.type = 'text';
+      title.className = 'qc-note-editor-title';
+      title.placeholder = 'Title (optional)';
+      const input = doc.createElement('textarea');
+      input.className = 'qc-note-editor-input';
+      input.placeholder = 'Write a note…';
+      const actions = doc.createElement('div');
+      actions.className = 'qc-note-editor-actions';
+      const cancel = doc.createElement('button');
+      cancel.type = 'button'; cancel.textContent = 'Cancel';
+      const save = doc.createElement('button');
+      save.type = 'button'; save.textContent = 'Save note';
+      actions.append(cancel, save);
+      editor.append(title, input, actions);
+      noteLayer.appendChild(editor);
+      // Position after insertion so the actual editor dimensions are known.
+      // This keeps the complete form inside the viewport at every click
+      // location, including the right and bottom edges.
+      const viewportX = point.x - (win.scrollX || 0);
+      const viewportY = point.y - (win.scrollY || 0);
+      const measured = editor.getBoundingClientRect?.() || {};
+      const width = measured.width || 240;
+      const height = measured.height || 190;
+      const viewportWidth = win.innerWidth || 1200;
+      const viewportHeight = win.innerHeight || 800;
+      editor.style.left = `${Math.max(8, Math.min(viewportX, viewportWidth - width - 8))}px`;
+      editor.style.top = `${Math.max(8, Math.min(viewportY, viewportHeight - height - 8))}px`;
+      const close = () => { editor.remove(); resolve(); };
+      cancel.addEventListener('click', close);
+      save.addEventListener('click', async () => {
+        const content = input.value.trim();
+        const noteTitle = title.value.trim();
+        if (!content && !noteTitle) { input.focus(); return; }
+        save.disabled = true;
+        const record = createAnnotation({
+          type: 'note', anchor, geometry: anchor ? null : point,
+          content, title: noteTitle,
+          style: { color: toolbarState.getState().color },
+        });
+        await store.addAnnotation(url, record);
+        if (session) session.addAnnotation(record);
+        else renderAnnotation(doc.body, overlaySvg, noteLayer, record);
+        onboarding.markStepComplete('first-annotation');
+        if (!session) {
+          currentAnnotations = [...currentAnnotations, record];
+          sidebar?.update(currentAnnotations);
+        }
+        close();
+      });
+      input.addEventListener('keydown', (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') save.click();
+        if (event.key === 'Escape') cancel.click();
+      });
+      input.focus();
+    });
+  }
+
   const disposeOnboarding = await mountOnboarding(onboardingHost, onboarding);
 
   function handleKeydown(event) {

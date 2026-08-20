@@ -32,7 +32,7 @@ function truncate(text, maxLength) {
 
 function excerptFor(annotation) {
   if (annotation.type === 'note') {
-    return truncate(annotation.content || '(empty note)', EXCERPT_MAX_LENGTH);
+    return truncate(annotation.title || annotation.content || '(empty note)', EXCERPT_MAX_LENGTH);
   }
   if (annotation.anchor) {
     return truncate(annotation.anchor.exact, EXCERPT_MAX_LENGTH);
@@ -42,7 +42,19 @@ function excerptFor(annotation) {
 
 function buildSidebarItems(annotations) {
   const anchored = annotations.filter((a) => a.anchor);
-  const unanchored = annotations.filter((a) => !a.anchor);
+  const unanchored = [];
+  const seenGeometry = new Set();
+  for (const annotation of annotations.filter((a) => !a.anchor)) {
+    // A host page can deliver the same drag completion more than once. Keep
+    // one list entry for exact duplicate shape geometry; distinct shapes of
+    // the same type remain separate annotations.
+    const key = annotation.geometry
+      ? `${annotation.type}:${JSON.stringify(annotation.geometry)}`
+      : null;
+    if (key && seenGeometry.has(key)) continue;
+    if (key) seenGeometry.add(key);
+    unanchored.push(annotation);
+  }
 
   anchored.sort((a, b) => a.anchor.position.start - b.anchor.position.start);
   unanchored.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -51,6 +63,8 @@ function buildSidebarItems(annotations) {
     id: a.id,
     type: a.type,
     excerpt: excerptFor(a),
+    title: a.title || '',
+    description: a.description || '',
     createdAt: a.createdAt,
   }));
 }

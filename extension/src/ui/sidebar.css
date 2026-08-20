@@ -26,6 +26,10 @@
 .qc-sidebar-item { display: block; width: 100%; overflow: hidden; padding: 9px 10px; border: 1px solid #e5e0d4; border-radius: 8px; background: white; color: #38342d; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .qc-sidebar-item:hover, .qc-sidebar-item:focus-visible { border-color: #c79c26; outline: none; }
 .qc-sidebar-item-orphaned { border-color: #c9792a; background: #fff8ed; color: #7a4618; white-space: normal; }
+.qc-sidebar-item-editor { display: grid; gap: 5px; margin: 5px 0 8px 8px; }
+.qc-sidebar-title, .qc-sidebar-description { box-sizing: border-box; width: 100%; padding: 6px 7px; border: 1px solid #d8d1c4; border-radius: 6px; background: white; color: inherit; font: inherit; font-size: 12px; }
+.qc-sidebar-description { min-height: 42px; resize: vertical; }
+.qc-sidebar-save { justify-self: end; padding: 5px 9px; border: 1px solid #c79c26; border-radius: 6px; background: #f5c542; color: #1a1a1a; cursor: pointer; }
 .qc-sidebar-retry { margin: 6px 0 0 8px; padding: 5px 8px; border: 1px solid #d8d1c4; border-radius: 6px; background: white; color: #6b6559; cursor: pointer; }
 .qc-sidebar-status { margin: 8px 0 0; color: #6b6559; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
