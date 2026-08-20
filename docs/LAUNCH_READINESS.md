@@ -43,8 +43,9 @@ this list, not caught earlier — flagged plainly rather than glossed over.
 
 6. **Relay persistence is now file-backed when `RELAY_DATA_PATH` is configured** — histories
    survive a relay restart and remain opaque base64-encoded bytes on disk. Optional bearer auth,
-   origin checks, payload limits, and room/client limits are also available. Retention limits,
-   backups, health checks, and graceful shutdown still need production hardening.
+   origin checks, payload/rate/room limits, heartbeat pruning, health checks, and graceful
+   shutdown are now available. Retention limits, backups, structured logs, and a formal
+   deployment policy still need production hardening.
 
 7. ~~**No DOM rendering wired up for toolbar/settings/onboarding.**~~ — **RESOLVED, but see
    item 0.** The three UI *components* are real and tested:

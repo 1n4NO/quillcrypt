@@ -126,6 +126,20 @@
 .qc-settings-relay input, .qc-settings-relay button { margin: 0 6px 6px 0; padding: 6px 8px; }
 .qc-settings-relay-status { margin: 4px 0 0; font-size: 11px; color: #6b6559; }
 
+.qc-settings-backup { margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid #e5e0d4; }
+.qc-settings-backup h3 { font-size: 13px; margin: 0 0 8px; }
+.qc-settings-backup p { font-size: 11px; color: #8a4d10; margin: 4px 0 8px; }
+.qc-settings-backup input, .qc-settings-backup button { margin: 0 6px 6px 0; padding: 6px 8px; }
+.qc-settings-backup-status { overflow-wrap: anywhere; }
+
+.qc-settings-members { margin: 0 0 16px; }
+.qc-settings-members h3 { font-size: 13px; margin: 0 0 8px; }
+.qc-settings-member-list { list-style: none; margin: 0; padding: 0; }
+.qc-settings-member-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.qc-settings-member-identity { flex: 1; font-size: 12px; overflow-wrap: anywhere; }
+.qc-settings-member-remove { padding: 5px 8px; border: 1px solid #e5e0d4; border-radius: 6px; background: white; cursor: pointer; }
+.qc-settings-member-status { font-size: 11px; color: #6b6559; }
+
 .qc-settings-export h3 {
   font-size: 13px;
   margin: 0 0 8px;

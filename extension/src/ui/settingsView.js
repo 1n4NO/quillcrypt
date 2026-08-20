@@ -130,6 +130,43 @@ async function mountSettings(container, settingsController) {
   relaySection.append(tokenInput, tokenButton, tokenStatus);
   root.appendChild(relaySection);
 
+  const backupSection = doc.createElement('section');
+  backupSection.className = 'qc-settings-backup';
+  const backupHeading = doc.createElement('h3'); backupHeading.textContent = 'Key backup';
+  const backupWarning = doc.createElement('p'); backupWarning.textContent = 'This backup can decrypt the listed workspaces. Store it like a password.';
+  const backupPassword = doc.createElement('input');
+  backupPassword.type = 'password'; backupPassword.placeholder = 'Backup password (8+ characters)'; backupPassword.setAttribute('aria-label', 'Key backup password');
+  const backupButton = doc.createElement('button'); backupButton.type = 'button'; backupButton.textContent = 'Export backup';
+  const restoreInput = doc.createElement('input'); restoreInput.type = 'file'; restoreInput.accept = '.json,application/json'; restoreInput.setAttribute('aria-label', 'Key backup file');
+  const restoreButton = doc.createElement('button'); restoreButton.type = 'button'; restoreButton.textContent = 'Import backup';
+  const backupStatus = doc.createElement('p'); backupStatus.className = 'qc-settings-backup-status'; backupStatus.setAttribute('role', 'status');
+  backupButton.addEventListener('click', async () => {
+    try {
+      const json = await settingsController.exportKeyBackup(backupPassword.value);
+      const link = doc.createElement('a'); link.href = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`; link.download = 'quillcrypt-key-backup.json'; link.click();
+      backupStatus.textContent = 'Encrypted backup ready.';
+    } catch (error) { backupStatus.textContent = error.message; }
+  });
+  restoreButton.addEventListener('click', async () => {
+    try {
+      const file = restoreInput.files?.[0];
+      if (!file) throw new Error('Choose a backup file first');
+      const imported = await settingsController.importKeyBackup(await file.text(), backupPassword.value);
+      backupStatus.textContent = `Imported ${imported} workspace(s). Reload the page to activate them.`;
+      await render();
+    } catch (error) { backupStatus.textContent = error.message; }
+  });
+  backupSection.append(backupHeading, backupWarning, backupPassword, backupButton, restoreInput, restoreButton, backupStatus);
+  root.appendChild(backupSection);
+
+  const memberController = settingsController.getMemberController?.();
+  if (memberController) {
+    const { mountMemberManagement } = require('./memberManagementView');
+    const memberHost = doc.createElement('div');
+    root.appendChild(memberHost);
+    await mountMemberManagement(memberHost, memberController);
+  }
+
   const list = doc.createElement('ul');
   list.className = 'qc-settings-list';
   root.appendChild(list);

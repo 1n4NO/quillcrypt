@@ -23,7 +23,11 @@ const MAX_PAYLOAD = Number(process.env.RELAY_MAX_PAYLOAD || 1024 * 1024);
 const MAX_ROOMS = Number(process.env.RELAY_MAX_ROOMS || Infinity);
 const MAX_CLIENTS_PER_ROOM = Number(process.env.RELAY_MAX_CLIENTS_PER_ROOM || Infinity);
 const HEARTBEAT_INTERVAL = Number(process.env.RELAY_HEARTBEAT_INTERVAL || 30000);
-startPersistentRelay(PORT, {
+const MAX_MESSAGES_PER_INTERVAL = Number(process.env.RELAY_MAX_MESSAGES_PER_INTERVAL || Infinity);
+const RATE_INTERVAL = Number(process.env.RELAY_RATE_INTERVAL || 1000);
+const HEALTH_PORT = process.env.RELAY_HEALTH_PORT ? Number(process.env.RELAY_HEALTH_PORT) : null;
+const SHUTDOWN_TIMEOUT = Number(process.env.RELAY_SHUTDOWN_TIMEOUT || 5000);
+const relay = startPersistentRelay(PORT, {
   persistencePath: DATA_PATH,
   authToken: AUTH_TOKEN,
   allowedOrigins: ALLOWED_ORIGINS,
@@ -31,5 +35,20 @@ startPersistentRelay(PORT, {
   maxRooms: MAX_ROOMS,
   maxClientsPerRoom: MAX_CLIENTS_PER_ROOM,
   heartbeatIntervalMs: HEARTBEAT_INTERVAL,
+  maxMessagesPerInterval: MAX_MESSAGES_PER_INTERVAL,
+  rateIntervalMs: RATE_INTERVAL,
+  healthPort: HEALTH_PORT,
+  shutdownTimeoutMs: SHUTDOWN_TIMEOUT,
 });
 console.log(`Quillcrypt relay (with persistence) listening on ws://localhost:${PORT}`);
+
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Relay received ${signal}; draining connections`);
+  await relay.shutdown();
+  process.exit(0);
+}
+process.once('SIGTERM', () => { shutdown('SIGTERM'); });
+process.once('SIGINT', () => { shutdown('SIGINT'); });

@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const Y = require('yjs');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 /**
  * Relay with persistence (QC-37). Extends the QC-31 blind relay so a room
@@ -30,6 +31,10 @@ function startPersistentRelay(port, options = {}) {
   const maxRooms = options.maxRooms ?? Infinity;
   const maxClientsPerRoom = options.maxClientsPerRoom ?? Infinity;
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 30000;
+  const maxMessagesPerInterval = options.maxMessagesPerInterval ?? Infinity;
+  const rateIntervalMs = options.rateIntervalMs ?? 1000;
+  const healthPort = options.healthPort ?? null;
+  const shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5000;
   const authProtocol = authToken ? `quillcrypt-auth.${authToken}` : null;
   const wss = new WebSocket.Server({
     port,
@@ -50,6 +55,20 @@ function startPersistentRelay(port, options = {}) {
   });
   const rooms = new Map(); // roomId -> Set<ws>
   const roomLogs = loadRoomLogs(persistencePath);
+  const healthServer = healthPort === null ? null : http.createServer((req, res) => {
+    if (req.method !== 'GET' || req.url !== '/healthz') {
+      res.writeHead(404); res.end(); return;
+    }
+    let storageReady = true;
+    if (persistencePath) {
+      try { fs.accessSync(path.dirname(persistencePath), fs.constants.W_OK); } catch { storageReady = false; }
+    }
+    const clients = [...rooms.values()].reduce((total, room) => total + room.size, 0);
+    const ready = Boolean(wss._server?.listening) && storageReady;
+    res.writeHead(ready ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ ok: ready, persistent: Boolean(persistencePath), storageReady, rooms: rooms.size, clients }));
+  });
+  healthServer?.listen(healthPort);
 
   function persistRoomLogs() {
     if (!persistencePath) return;
@@ -91,6 +110,8 @@ function startPersistentRelay(port, options = {}) {
     room.add(ws);
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
+    let windowStartedAt = Date.now();
+    let messageCount = 0;
 
     // Catch-up: replay everything stored for this room to the new connection,
     // whether it's reconnecting after a drop or joining for the very first time.
@@ -100,6 +121,16 @@ function startPersistentRelay(port, options = {}) {
     }
 
     ws.on('message', (data) => {
+      const now = Date.now();
+      if (now - windowStartedAt >= rateIntervalMs) {
+        windowStartedAt = now;
+        messageCount = 0;
+      }
+      messageCount += 1;
+      if (messageCount > maxMessagesPerInterval) {
+        ws.close(1008, 'Message rate limit exceeded');
+        return;
+      }
       const room = rooms.get(roomId);
       appendAndMaybeCompact(roomId, data);
       if (room) {
@@ -137,7 +168,23 @@ function startPersistentRelay(port, options = {}) {
 
   return {
     wss,
-    close: () => { if (heartbeatTimer) clearInterval(heartbeatTimer); return wss.close(); },
+    healthServer,
+    close: () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (healthServer?.listening) healthServer.close();
+      return wss.close();
+    },
+    shutdown: async () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      for (const room of rooms.values()) for (const ws of room) ws.close(1001, 'Relay shutting down');
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, shutdownTimeoutMs);
+        timer.unref?.();
+        wss.close(() => { clearTimeout(timer); resolve(); });
+      });
+      for (const room of rooms.values()) for (const ws of room) ws.terminate();
+      if (healthServer?.listening) await new Promise((resolve) => healthServer.close(resolve));
+    },
     getStats: () => ({
       roomCount: rooms.size,
       logSizePerRoom: Object.fromEntries([...roomLogs.entries()].map(([id, log]) => [id, log.length])),

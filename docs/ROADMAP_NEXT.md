@@ -300,9 +300,10 @@ operations remain future hardening work.
 - graceful shutdown drains or clearly rejects new connections without corrupting persisted state.
 
 **Status:** the production entry point now supports optional bearer-token authorization, origin
-allowlisting, maximum frame size, room limits, and per-room client limits through environment
-variables. Rate limiting, health/readiness endpoints, structured redacted logs, and graceful
-drain behavior remain.
+allowlisting, maximum frame size, room/client limits, per-connection rate limits, heartbeat
+pruning, a separate redacted `/healthz` endpoint, and graceful signal-driven draining through
+environment/configuration options. Structured redacted logs and a formal deployment policy
+remain.
 
 ## Phase 3 - Security, privacy, and trust
 
@@ -327,6 +328,10 @@ Goal: make the public privacy and E2EE claims match independently reviewed behav
 
 **Depends on:** QC-NEXT-011, QC-NEXT-022, QC-NEXT-023.
 
+**Status:** the audit packet, reproducible commands, evidence map, known-limitations list, and
+permissions/data-handling rationale are prepared. External review and remediation sign-off are
+still required before the product can claim an audit.
+
 ### QC-NEXT-031 - Key lifecycle and recovery UX *(Story, M)*
 
 **Problem:** key-store and recovery logic exists, but users need a safe operational flow for
@@ -343,6 +348,11 @@ Goal: make the public privacy and E2EE claims match independently reviewed behav
 - leaving a workspace removes local keys and explains what remains on other devices;
 - no plaintext key or annotation content is logged.
 
+**Status:** encrypted, versioned workspace-key backup/export and password-validated import are
+implemented in Settings. Backups use PBKDF2-SHA-256 plus AES-GCM locally and never leave the
+device; member fingerprint confirmation and destructive member-rotation UI are now available in
+the Settings member subview when a workspace member controller is supplied.
+
 ### QC-NEXT-032 - Permissions and data-collection review *(Task, M)*
 
 **Problem:** the extension requests broad host access and the Firefox linter reports a future
@@ -357,6 +367,10 @@ Goal: make the public privacy and E2EE claims match independently reviewed behav
 - no permission is retained solely for an unused feature;
 - Firefox and Chrome store declarations match runtime behavior;
 - linter notices are resolved or tracked with a dated compatibility decision.
+
+**Status:** permission and data-handling rationale is documented in `docs/PERMISSIONS_AND_DATA.md`.
+The current broad host access remains intentional for arbitrary-page annotation and still needs
+browser-store review and a dated compatibility decision for any future data-collection notices.
 
 ## Phase 4 - UX, accessibility, and resilience
 

@@ -87,6 +87,18 @@ class SettingsController {
     throw new Error(`Unknown export format: ${format}`);
   }
 
+  async exportKeyBackup(password) {
+    const { exportKeyBackup } = require('../crypto/keyBackup');
+    return exportKeyBackup(this.keyStore, this.workspaceRegistry, password);
+  }
+
+  async importKeyBackup(json, password) {
+    const { importKeyBackup } = require('../crypto/keyBackup');
+    return importKeyBackup(json, this.keyStore, this.workspaceRegistry, password);
+  }
+
+  getMemberController() { return this.pageContext.memberController || null; }
+
   async getRelayUrl() {
     return this.pageContext.relayUrl || await this.pageContext.configBackend?.getRelayUrl() || '';
   }

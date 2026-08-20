@@ -27,8 +27,10 @@ are, practically speaking, opposites. We chose the encryption.
 
 ## What you can do about it
 
-- **Export a backup periodically**, especially before switching browsers, reinstalling, or
-  getting a new device. (See the extension's settings page for the export option.)
+- **Export an encrypted key backup periodically**, especially before switching browsers,
+  reinstalling, or getting a new device. (See the extension's settings page for the export and
+  import options.) The backup password is never sent to Quillcrypt; losing both the backup and
+  its password has the same irreversible consequence as losing the device.
 - **Keep at least one other device or browser profile logged into workspaces you care about**,
   if the workspace is shared — a second active member means the workspace itself survives even
   if your device doesn't.
