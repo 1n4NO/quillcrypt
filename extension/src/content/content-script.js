@@ -456,40 +456,29 @@ function start(doc, win, storageArea, runtime) {
     const activationStore = new WebExtensionStorageBackend('active-pages', storageArea);
     const pageKey = normalizeUrl(win.location.href);
     let mounted = null;
-    let promptHost = null;
 
-    async function enablePage() {
+    async function togglePage() {
+      if (mounted) {
+        await activationStore.remove(pageKey);
+        mounted.dispose();
+        mounted = null;
+        return { ok: true, enabled: false };
+      }
       await activationStore.set(pageKey, true);
-      promptHost?.remove();
-      promptHost = null;
-      if (!mounted) mounted = await mount(doc, win, storageArea, { runtime });
+      mounted = await mount(doc, win, storageArea, { runtime });
       return { ok: true, enabled: true };
     }
 
     const handleActivationMessage = (message) => {
-      if (message?.type !== 'QC_ENABLE_PAGE') return undefined;
-      return enablePage();
+      if (message?.type !== 'QC_TOGGLE_PAGE') return undefined;
+      return togglePage();
     };
     runtime?.onMessage?.addListener?.(handleActivationMessage);
 
-    function showActivationPrompt() {
-      promptHost = doc.createElement('div');
-      promptHost.className = 'qc-activation-prompt';
-      const text = doc.createElement('span');
-      text.textContent = 'Quillcrypt is off for this page';
-      const button = doc.createElement('button');
-      button.type = 'button';
-      button.textContent = 'Enable on this page';
-      button.addEventListener('click', () => enablePage());
-      promptHost.append(text, button);
-      doc.body.appendChild(promptHost);
-    }
-
     activationStore.get(pageKey).then((enabled) => {
-      if (enabled) return enablePage();
-      showActivationPrompt();
+      if (enabled) return togglePage();
       return null;
-    }).catch(() => showActivationPrompt());
+    }).catch(() => null);
   });
 }
 

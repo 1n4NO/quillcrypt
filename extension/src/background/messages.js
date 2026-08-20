@@ -5,7 +5,7 @@ const MESSAGE_TYPES = Object.freeze({
   GET_STATUS: 'QC_GET_STATUS',
   GET_RELAY_URL: 'QC_GET_RELAY_URL',
   OPEN_SETTINGS: 'QC_OPEN_SETTINGS',
-  ENABLE_PAGE: 'QC_ENABLE_PAGE',
+  TOGGLE_PAGE: 'QC_TOGGLE_PAGE',
 });
 
 function isMessage(value) {
