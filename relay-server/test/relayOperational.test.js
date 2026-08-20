@@ -22,12 +22,14 @@ async function health(port) {
 }
 
 async function main() {
+  const metrics = [];
   const relay = startPersistentRelay(8127, {
     healthPort: 8128,
     heartbeatIntervalMs: 0,
     maxMessagesPerInterval: 2,
     rateIntervalMs: 1000,
     maxClientsPerRoom: 1,
+    onMetric: (metric) => metrics.push(metric),
   });
   await new Promise((resolve) => relay.wss.listening ? resolve() : relay.wss.once('listening', resolve));
   await new Promise((resolve) => relay.healthServer.listening ? resolve() : relay.healthServer.once('listening', resolve));
@@ -48,6 +50,8 @@ async function main() {
   const second = new WebSocket('ws://127.0.0.1:8127?room=client-limit');
   const secondClose = await new Promise((resolve) => second.once('close', (code) => resolve(code)));
   check('per-room client limit rejects excess connections', secondClose === 1008);
+  const forbiddenKeys = ['roomId', 'url', 'payload', 'content', 'key', 'token'];
+  check('operational metrics stay aggregate and omit sensitive fields', metrics.length > 0 && metrics.every((metric) => forbiddenKeys.every((key) => !(key in metric))));
   first.close();
   await wait(50);
   await relay.shutdown();

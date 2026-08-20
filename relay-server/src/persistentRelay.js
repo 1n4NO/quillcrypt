@@ -35,6 +35,7 @@ function startPersistentRelay(port, options = {}) {
   const rateIntervalMs = options.rateIntervalMs ?? 1000;
   const healthPort = options.healthPort ?? null;
   const shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5000;
+  const onMetric = typeof options.onMetric === 'function' ? options.onMetric : null;
   const authProtocol = authToken ? `quillcrypt-auth.${authToken}` : null;
   const wss = new WebSocket.Server({
     port,
@@ -55,6 +56,13 @@ function startPersistentRelay(port, options = {}) {
   });
   const rooms = new Map(); // roomId -> Set<ws>
   const roomLogs = loadRoomLogs(persistencePath);
+  const clientCount = () => [...rooms.values()].reduce((total, room) => total + room.size, 0);
+  const emitMetric = (type) => {
+    if (!onMetric) return;
+    try {
+      onMetric(Object.freeze({ type, roomCount: rooms.size, clientCount: clientCount(), persistent: Boolean(persistencePath) }));
+    } catch {}
+  };
   const healthServer = healthPort === null ? null : http.createServer((req, res) => {
     if (req.method !== 'GET' || req.url !== '/healthz') {
       res.writeHead(404); res.end(); return;
@@ -63,8 +71,9 @@ function startPersistentRelay(port, options = {}) {
     if (persistencePath) {
       try { fs.accessSync(path.dirname(persistencePath), fs.constants.W_OK); } catch { storageReady = false; }
     }
-    const clients = [...rooms.values()].reduce((total, room) => total + room.size, 0);
+    const clients = clientCount();
     const ready = Boolean(wss._server?.listening) && storageReady;
+    emitMetric('relay.health');
     res.writeHead(ready ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     res.end(JSON.stringify({ ok: ready, persistent: Boolean(persistencePath), storageReady, rooms: rooms.size, clients }));
   });
@@ -108,6 +117,7 @@ function startPersistentRelay(port, options = {}) {
       return;
     }
     room.add(ws);
+    emitMetric('relay.connections');
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
     let windowStartedAt = Date.now();
@@ -152,6 +162,7 @@ function startPersistentRelay(port, options = {}) {
       if (room.size === 0) {
         rooms.delete(roomId); // live connections are cleaned up; roomLogs deliberately persist
       }
+      emitMetric('relay.connections');
     });
   });
 

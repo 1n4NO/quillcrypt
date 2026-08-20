@@ -554,16 +554,27 @@ These tickets should not block a private beta but should be scheduled before bro
 Test browser storage migrations, relay database backups/restores, workspace export recovery, and
 version upgrades with real data fixtures.
 
+**Status:** opaque relay backup/restore is implemented with snapshot validation, atomic writes,
+CLI access through `npm run backup --workspace=relay-server`, and a restart/replay test. Browser
+storage/key-backup/export coverage exists in the extension suite. Real beta upgrade fixtures and
+scheduled backup/retention drills remain operational work.
+
 ### QC-NEXT-061 - Operational observability without content leakage *(Task, M)*
 
 Add health metrics, error tracking, and performance telemetry that explicitly excludes page text,
 annotation content, keys, invite fragments, full URLs, and decrypted payloads.
+
+**Status:** the health endpoint and an optional aggregate-only `onMetric` hook are implemented
+and tested against sensitive-field leakage. A production metrics backend, error tracking, and
+performance telemetry policy still need deployment ownership.
 
 ### QC-NEXT-062 - Product feedback and scope review *(Task, S)*
 
 Review orphaned anchors, workspace scope confusion, relay costs, browser-specific issues, and
 accessibility findings from beta users. Convert evidence into the next ticket set rather than
 expanding scope opportunistically.
+
+**Status:** pending beta evidence; no synthetic findings are being promoted into product scope.
 
 ## Recommended execution order
 

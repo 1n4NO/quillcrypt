@@ -37,3 +37,33 @@ the relay listener or configured persistence directory is not ready.
 Shutdown handling responds to `SIGTERM` and `SIGINT`, stops accepting new connections, sends a
 normal-close signal to clients, waits up to `RELAY_SHUTDOWN_TIMEOUT`, then terminates remaining
 sockets. Deployments should still use a supervisor restart policy and monitor the health endpoint.
+
+## Backup and restore
+
+The persistence file is an opaque JSON envelope containing base64-encoded relay updates. Use the
+validated, atomic helper rather than copying an arbitrary file into the live data path:
+
+```sh
+npm run backup --workspace=relay-server -- \
+  --source=/var/lib/quillcrypt/relay.json \
+  --destination=/var/backups/quillcrypt/relay.json
+
+npm run backup --workspace=relay-server -- \
+  --restore \
+  --source=/var/backups/quillcrypt/relay.json \
+  --destination=/var/lib/quillcrypt/relay-restored.json
+```
+
+The helper validates the snapshot version and base64 envelope, writes through a same-directory
+temporary file, and returns only version/room-count/byte-count metadata. Restore to a new path,
+run the relay persistence tests and health check, then switch configuration; preserve the failed
+path for investigation. Backups remain metadata-bearing operational data and require restricted
+permissions and retention controls.
+
+## Redacted operational metrics
+
+`startPersistentRelay` accepts an optional `onMetric` callback for host instrumentation. Its
+events contain only an event type, aggregate room/client counts, and a persistence boolean. They
+never contain room IDs, URLs, payloads, annotation content, keys, or tokens. The built-in
+`/healthz` endpoint remains the default production signal; any metrics sink must preserve this
+allowlist and must not add request data around the safe event.
