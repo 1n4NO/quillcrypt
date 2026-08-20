@@ -19,10 +19,20 @@ host.querySelector('.qc-sidebar-search').value = 'missing';
 host.querySelector('.qc-sidebar-search').dispatchEvent(new dom.window.Event('input'));
 assert.equal(host.querySelectorAll('.qc-sidebar-item').length, 0);
 assert.equal(host.querySelector('.qc-sidebar-empty').hidden, false);
+assert.equal(host.querySelector('.qc-sidebar-clear').disabled, false);
 sidebar.update(annotations);
 assert.equal(host.querySelectorAll('.qc-sidebar-item').length, 0, 'filter remains applied after update');
 sidebar.dispose();
 assert.equal(host.querySelector('.qc-sidebar'), null);
+
+const clearHost = document.createElement('div');
+let clearCalls = 0;
+const clearSidebar = mountSidebar(clearHost, annotations, { onClearAll: () => { clearCalls += 1; } });
+clearHost.querySelector('.qc-sidebar-clear').click();
+assert.equal(clearCalls, 1, 'clear all invokes the page-scoped callback');
+clearSidebar.update([]);
+assert.equal(clearHost.querySelector('.qc-sidebar-clear').disabled, true);
+clearSidebar.dispose();
 
 const orphanHost = document.createElement('div');
 const orphan = { id: 'orphan-1', type: 'highlight', anchor: { exact: 'text no longer present', position: { start: 0, end: 20 } }, createdAt: new Date().toISOString() };

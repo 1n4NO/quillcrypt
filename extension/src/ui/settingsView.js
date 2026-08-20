@@ -11,7 +11,7 @@
  * workspace name into a template string unescaped).
  */
 
-function renderWorkspaceRow(doc, summary, onLeave) {
+function renderWorkspaceRow(doc, summary, { onLeave, onAddPage }) {
   const row = doc.createElement('li');
   row.className = 'qc-settings-row';
   row.dataset.workspaceId = summary.id;
@@ -40,10 +40,19 @@ function renderWorkspaceRow(doc, summary, onLeave) {
   leaveButton.className = 'qc-settings-leave';
   leaveButton.textContent = 'Leave';
   leaveButton.setAttribute('aria-label', `Leave workspace ${summary.name}`);
-  leaveButton.addEventListener('click', () => onLeave(summary.id));
+  leaveButton.addEventListener('click', () => onLeave(summary));
 
   row.appendChild(info);
   row.appendChild(badge);
+  if (summary.scopeType === 'urlList' && !summary.coversCurrentPage) {
+    const addPageButton = doc.createElement('button');
+    addPageButton.type = 'button';
+    addPageButton.className = 'qc-settings-add-page';
+    addPageButton.textContent = 'Add this page';
+    addPageButton.setAttribute('aria-label', `Add this page to workspace ${summary.name}`);
+    addPageButton.addEventListener('click', () => onAddPage(summary.id));
+    row.appendChild(addPageButton);
+  }
   row.appendChild(leaveButton);
   return row;
 }
@@ -58,6 +67,14 @@ async function mountSettings(container, settingsController) {
   heading.className = 'qc-settings-heading';
   heading.textContent = 'Your workspaces';
   root.appendChild(heading);
+
+  const privacyLink = doc.createElement('a');
+  privacyLink.className = 'qc-settings-privacy-link';
+  privacyLink.href = settingsController.privacyPolicyUrl || 'https://quillcrypt.dev/privacy.html';
+  privacyLink.target = '_blank';
+  privacyLink.rel = 'noopener noreferrer';
+  privacyLink.textContent = 'Privacy policy';
+  root.appendChild(privacyLink);
 
   const workspaceSection = doc.createElement('section');
   workspaceSection.className = 'qc-settings-workspace-create';
@@ -152,7 +169,7 @@ async function mountSettings(container, settingsController) {
       const file = restoreInput.files?.[0];
       if (!file) throw new Error('Choose a backup file first');
       const imported = await settingsController.importKeyBackup(await file.text(), backupPassword.value);
-      backupStatus.textContent = `Imported ${imported} workspace(s). Reload the page to activate them.`;
+      backupStatus.textContent = `Imported ${imported} workspace(s). Matching pages are now unlocked.`;
       await render();
     } catch (error) { backupStatus.textContent = error.message; }
   });
@@ -216,12 +233,29 @@ async function mountSettings(container, settingsController) {
       return;
     }
     for (const summary of summaries) {
-      list.appendChild(renderWorkspaceRow(doc, summary, handleLeave));
+      list.appendChild(renderWorkspaceRow(doc, summary, { onLeave: handleLeave, onAddPage: handleAddPage }));
+    }
+  }
+
+  async function handleAddPage(workspaceId) {
+    try {
+      await settingsController.addCurrentPageToWorkspace(workspaceId);
+      await render();
+    } catch (error) {
+      const status = doc.createElement('p');
+      status.className = 'qc-settings-scope-status';
+      status.setAttribute('role', 'status');
+      status.textContent = error.message;
+      root.appendChild(status);
     }
   }
 
   async function handleLeave(workspaceId) {
-    await settingsController.removeWorkspaceLocally(workspaceId);
+    const summary = typeof workspaceId === 'object'
+      ? workspaceId
+      : (await settingsController.getWorkspaceSummaries()).find((item) => item.id === workspaceId);
+    if (settingsController.confirmLeave && !(await settingsController.confirmLeave(summary))) return;
+    await settingsController.removeWorkspaceLocally(summary.id);
     await render();
   }
 

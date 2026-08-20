@@ -1,0 +1,5 @@
+.qc-workspace-status { position: fixed; top: 16px; right: 16px; z-index: 2147483647; width: min(360px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid #c78922; border-radius: 8px; background: #fff8df; color: #4b3710; box-shadow: 0 6px 20px rgb(0 0 0 / 16%); font: 12px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.qc-workspace-status p { margin: 0 0 8px; }
+.qc-workspace-status-settings { padding: 5px 8px; border: 1px solid #8a6a10; border-radius: 5px; background: #f5c542; color: #1a1a1a; cursor: pointer; font: inherit; font-weight: 600; }
+.qc-workspace-status-settings:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 2px; }
+@media (forced-colors: active) { .qc-workspace-status, .qc-workspace-status-settings { border-color: CanvasText; background: Canvas; color: CanvasText; } }

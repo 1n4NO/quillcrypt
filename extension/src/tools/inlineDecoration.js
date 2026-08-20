@@ -50,6 +50,13 @@ function collectFullyContainedTextNodes(root, range) {
   return nodes;
 }
 
+function hasExistingInlineDecoration(root, range, selector) {
+  if (!root.contains(range.commonAncestorContainer)) return false;
+  return collectFullyContainedTextNodes(root, range).some((textNode) =>
+    textNode.parentElement?.closest(selector)
+  );
+}
+
 /**
  * Wrap every text node in `range` with a decoration element.
  * `decoration` = { tag, className, style } — style is an inline CSS string.
@@ -87,4 +94,10 @@ function removeInlineDecoration(root, annotationId) {
   });
 }
 
-module.exports = { applyInlineDecoration, removeInlineDecoration, splitRangeBoundaries, collectFullyContainedTextNodes };
+module.exports = {
+  applyInlineDecoration,
+  removeInlineDecoration,
+  splitRangeBoundaries,
+  collectFullyContainedTextNodes,
+  hasExistingInlineDecoration,
+};

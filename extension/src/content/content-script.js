@@ -22,6 +22,8 @@ const { AnnotationEditController } = require('../models/editController');
 const { OnboardingState } = require('../ui/onboarding');
 const { mountOnboarding } = require('../ui/onboardingView');
 const { mountRetryObserver } = require('./retryObserver');
+const { mountWorkspaceStatus } = require('../ui/workspaceStatusView');
+const { mountAnnotationTooltip } = require('./annotationTooltip');
 
 /**
  * The real mount function, composing every module built and individually
@@ -41,6 +43,7 @@ async function mount(doc, win, storageArea, options = {}) {
   const url = win.location.href;
 
   const { overlaySvg, noteLayer, dispose: disposeOverlay } = mountOverlay(doc, win);
+  const disposeAnnotationTooltip = mountAnnotationTooltip(doc);
 
   const store = new AnnotationStore(new WebExtensionStorageBackend('annotations', storageArea));
   const onboarding = new OnboardingState(new WebExtensionOnboardingBackend(storageArea));
@@ -54,23 +57,34 @@ async function mount(doc, win, storageArea, options = {}) {
   const configBackend = new WebExtensionConfigBackend(storageArea);
   const configuredRelayUrl = options.relayUrl || await configBackend.getRelayUrl();
   const configuredRelayAuthToken = options.relayAuthToken || await configBackend.getRelayAuthToken();
+  let workspaceStatus = null;
   const settingsController = new SettingsController(keyStore, registry, {
     url,
     pageTitle: doc.title,
     getAnnotations: () => currentAnnotations,
     onWorkspaceAccepted: (acceptedWorkspace, acceptedKey) => activateWorkspace(acceptedWorkspace, acceptedKey),
+    onWorkspaceCreated: (createdWorkspace, createdKey) => activateWorkspace(createdWorkspace, createdKey),
+    onWorkspaceScopeChanged: (updatedWorkspace, updatedKey) => updatedKey && activateWorkspace(updatedWorkspace, updatedKey),
+    onKeysImported: () => activateMatchingWorkspace(),
+    confirmLeave: (summary) => typeof win.confirm === 'function'
+      ? win.confirm(`Leave “${summary.name}” on this device? Its local key will be removed; other members will keep access.`)
+      : true,
+    privacyPolicyUrl: options.privacyPolicyUrl,
     configBackend,
     relayUrl: configuredRelayUrl,
     relayAuthToken: configuredRelayAuthToken,
   });
   const workspaces = await registry.listWorkspaces();
+  const matchingWorkspaces = configuredRelayUrl ? findWorkspacesForUrl(workspaces, url) : [];
+  const lockedWorkspaces = [];
   // Resolve the first matching unlocked workspace explicitly.
   let workspace = null;
   let workspaceKey = null;
   if (configuredRelayUrl) {
-    for (const candidate of findWorkspacesForUrl(workspaces, url)) {
+    for (const candidate of matchingWorkspaces) {
       const candidateKey = await keyStore.getWorkspaceKey(candidate.id);
       if (candidateKey) { workspace = candidate; workspaceKey = candidateKey; break; }
+      lockedWorkspaces.push(candidate);
     }
   }
 
@@ -89,6 +103,8 @@ async function mount(doc, win, storageArea, options = {}) {
 
   function activateWorkspace(acceptedWorkspace, acceptedKey) {
     if (!configuredRelayUrl) return;
+    workspace = acceptedWorkspace;
+    workspaceKey = acceptedKey;
     session?.dispose();
     session = new WorkspaceSession(acceptedWorkspace, acceptedKey, configuredRelayUrl, {
       ...options,
@@ -96,6 +112,23 @@ async function mount(doc, win, storageArea, options = {}) {
     });
     for (const annotation of currentAnnotations) session.addAnnotation(annotation);
     session.onAnnotationsChange(renderCurrentAnnotations);
+    workspaceStatus?.clear();
+  }
+
+  async function activateMatchingWorkspace() {
+    if (session || !configuredRelayUrl) return Boolean(session);
+    const latestWorkspaces = await registry.listWorkspaces();
+    const latestLocked = [];
+    for (const candidate of findWorkspacesForUrl(latestWorkspaces, url)) {
+      const candidateKey = await keyStore.getWorkspaceKey(candidate.id);
+      if (candidateKey) {
+        activateWorkspace(candidate, candidateKey);
+        return true;
+      }
+      latestLocked.push(candidate);
+    }
+    workspaceStatus?.update(latestLocked);
+    return false;
   }
 
   function renderCurrentAnnotations(annotations) {
@@ -124,6 +157,19 @@ async function mount(doc, win, storageArea, options = {}) {
         .then(() => mirrorAnnotationsToLocalStore(annotations))
         .catch(() => {});
     }
+  }
+
+  async function clearCurrentPageAnnotations() {
+    if (currentAnnotations.length === 0) return;
+    const confirmed = typeof win.confirm !== 'function'
+      || win.confirm(`Delete all ${currentAnnotations.length} annotations from this page?`);
+    if (!confirmed) return;
+    const toClear = currentAnnotations.slice();
+    if (session) {
+      toClear.forEach((annotation) => session.deleteAnnotation(annotation.id));
+    }
+    for (const annotation of toClear) await store.deleteAnnotation(url, annotation.id);
+    if (!session) renderCurrentAnnotations([]);
   }
 
   async function mirrorAnnotationsToLocalStore(annotations) {
@@ -165,6 +211,7 @@ async function mount(doc, win, storageArea, options = {}) {
       if (sidebar) disposeSidebar();
       else sidebar = mountSidebar(sidebarHost, currentAnnotations, {
         onClose: disposeSidebar,
+        onClearAll: clearCurrentPageAnnotations,
         orphanedIds: failedToRender,
         onRetry: () => renderCurrentAnnotations(currentAnnotations),
       });
@@ -200,6 +247,14 @@ async function mount(doc, win, storageArea, options = {}) {
     await settingsOpening;
   }
 
+  const workspaceStatusHost = doc.createElement('div');
+  workspaceStatusHost.className = 'qc-workspace-status-host';
+  doc.body.appendChild(workspaceStatusHost);
+  workspaceStatus = mountWorkspaceStatus(workspaceStatusHost, {
+    lockedWorkspaces,
+    onOpenSettings: () => toggleSettings(),
+  });
+
   const runtime = options.runtime;
   const disposeRetryObserver = mountRetryObserver(doc, win, {
     hasOrphans: () => failedToRender.length > 0,
@@ -214,6 +269,7 @@ async function mount(doc, win, storageArea, options = {}) {
 
   const disposeInteractions = attachToolInteractions({
     doc,
+    win,
     root: doc.body,
     overlaySvg,
     noteLayer,
@@ -253,6 +309,7 @@ async function mount(doc, win, storageArea, options = {}) {
     failedToRender,
     dispose() {
       disposeOverlay();
+      disposeAnnotationTooltip();
       disposeToolbar();
       disposeSidebar();
       settingsDispose?.();
@@ -260,11 +317,13 @@ async function mount(doc, win, storageArea, options = {}) {
       disposeInteractions();
       disposeOnboarding();
       disposeRetryObserver();
+      workspaceStatus?.dispose();
       session?.dispose();
       toolbarHost.remove();
       onboardingHost.remove();
       sidebarHost.remove();
       settingsHost.remove();
+      workspaceStatusHost.remove();
       if (handleRuntimeMessage) runtime.onMessage.removeListener?.(handleRuntimeMessage);
       doc.removeEventListener('keydown', handleKeydown);
     },
@@ -272,9 +331,9 @@ async function mount(doc, win, storageArea, options = {}) {
 }
 
 /** Real content-script entry point: guards against double-injection, then mounts. */
-function start(doc, win, storageArea) {
+function start(doc, win, storageArea, runtime) {
   injectOnce(doc, () => {
-    mount(doc, win, storageArea, { runtime: browserApi.runtime });
+    mount(doc, win, storageArea, { runtime });
   });
 }
 
@@ -283,7 +342,7 @@ function start(doc, win, storageArea) {
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   const browserApi = typeof browser !== 'undefined' ? browser : (typeof chrome !== 'undefined' ? chrome : null);
   if (browserApi) {
-    start(document, window, browserApi.storage.local);
+    start(document, window, browserApi.storage.local, browserApi.runtime);
   }
 }
 

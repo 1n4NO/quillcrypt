@@ -59,7 +59,7 @@ function readZipEntries(artifact) {
 const expectedEntries = [
   'dist/background.js', 'dist/content-script.js', 'manifest.json',
   'icons/icon-128.png', 'icons/icon-16.png', 'icons/icon-48.png',
-  'src/overlay/overlay.css', 'src/ui/settings.css', 'src/ui/sidebar.css',
+  'src/overlay/overlay.css', 'src/ui/onboarding.css', 'src/ui/settings.css', 'src/ui/sidebar.css', 'src/ui/toolbar.css', 'src/ui/workspaceStatus.css',
 ].sort();
 for (const artifact of artifacts) {
   const actualEntries = readZipEntries(artifact).sort();

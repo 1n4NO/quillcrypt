@@ -36,6 +36,9 @@ class WorkspaceRegistry {
   async addWorkspace(workspace) {
     await this.backend.set(workspace.id, workspace);
   }
+  async getWorkspace(id) {
+    return this.backend.get?.(id) || null;
+  }
   async removeWorkspace(id) {
     await this.backend.remove(id);
   }
@@ -49,6 +52,8 @@ class SettingsController {
     this.keyStore = keyStore;
     this.workspaceRegistry = workspaceRegistry;
     this.pageContext = pageContext;
+    this.confirmLeave = pageContext.confirmLeave;
+    this.privacyPolicyUrl = pageContext.privacyPolicyUrl || 'https://quillcrypt.dev/privacy.html';
   }
 
   /** Combined view-model: every registered workspace, annotated with whether this device still has its key. */
@@ -63,6 +68,7 @@ class SettingsController {
         scopeType: workspace.scopeType,
         scopeLabel: workspace.scopeType === 'domain' ? workspace.scopeValue : `${workspace.scopeValue.length} page(s)`,
         hasKey: key !== null,
+        coversCurrentPage: this.pageContext.url ? require('../storage/workspace').matchesUrl(workspace, this.pageContext.url) : false,
       });
     }
     return summaries;
@@ -94,7 +100,9 @@ class SettingsController {
 
   async importKeyBackup(json, password) {
     const { importKeyBackup } = require('../crypto/keyBackup');
-    return importKeyBackup(json, this.keyStore, this.workspaceRegistry, password);
+    const imported = await importKeyBackup(json, this.keyStore, this.workspaceRegistry, password);
+    await this.pageContext.onKeysImported?.();
+    return imported;
   }
 
   getMemberController() { return this.pageContext.memberController || null; }
@@ -140,7 +148,19 @@ class SettingsController {
     const key = generateSymmetricKey();
     await this.workspaceRegistry.addWorkspace(workspace);
     await this.keyStore.storeWorkspaceKey(workspace.id, key);
+    await this.pageContext.onWorkspaceCreated?.(workspace, key);
     return { workspace, inviteLink: buildWorkspaceInviteLink(origin, workspace, key).href };
+  }
+
+  async addCurrentPageToWorkspace(workspaceId) {
+    const { addUrlToWorkspace } = require('../storage/scopingHelper');
+    const workspace = await this.workspaceRegistry.getWorkspace(workspaceId);
+    if (!workspace) throw new Error('Workspace not found');
+    if (!this.pageContext.url) throw new Error('The current page URL is unavailable');
+    const updated = { ...workspace, scopeValue: addUrlToWorkspace(workspace, this.pageContext.url) };
+    await this.workspaceRegistry.addWorkspace(updated);
+    await this.pageContext.onWorkspaceScopeChanged?.(updated, await this.keyStore.getWorkspaceKey(updated.id));
+    return updated;
   }
 
   async acceptInvite(url) {

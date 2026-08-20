@@ -3,7 +3,7 @@
 const { buildSidebarItems, filterSidebarItems } = require('./sidebar');
 const { locateAsRange } = require('../content/anchoring/rangeAnchoring');
 
-function mountSidebar(container, annotations = [], { onClose, onRetry, orphanedIds = [] } = {}) {
+function mountSidebar(container, annotations = [], { onClose, onClearAll, onRetry, orphanedIds = [] } = {}) {
   const doc = container.ownerDocument;
   const root = doc.createElement('aside');
   root.className = 'qc-sidebar';
@@ -21,7 +21,19 @@ function mountSidebar(container, annotations = [], { onClose, onRetry, orphanedI
   close.setAttribute('aria-label', 'Close annotations');
   close.textContent = '×';
   close.addEventListener('click', () => onClose?.());
-  header.append(title, close);
+  const actions = doc.createElement('div');
+  actions.className = 'qc-sidebar-header-actions';
+  const clear = doc.createElement('button');
+  clear.type = 'button';
+  clear.className = 'qc-sidebar-clear';
+  clear.textContent = 'Clear all';
+  clear.title = 'Delete all annotations on this page';
+  clear.addEventListener('click', async () => {
+    clear.disabled = true;
+    try { await onClearAll?.(); } finally { clear.disabled = false; }
+  });
+  actions.append(clear, close);
+  header.append(title, actions);
 
   const search = doc.createElement('input');
   search.type = 'search';
@@ -43,6 +55,7 @@ function mountSidebar(container, annotations = [], { onClose, onRetry, orphanedI
   let current = annotations.slice();
   let orphaned = new Set(orphanedIds);
   function render() {
+    clear.disabled = current.length === 0;
     list.replaceChildren();
     const items = filterSidebarItems(buildSidebarItems(current).map((item) => ({ ...item, orphaned: orphaned.has(item.id) })), search.value);
     empty.hidden = items.length !== 0;

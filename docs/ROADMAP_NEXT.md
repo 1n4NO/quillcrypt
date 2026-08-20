@@ -153,10 +153,11 @@ browser smoke run is still required.
 
 **Depends on:** QC-NEXT-011, QC-NEXT-020, QC-NEXT-021.
 
-**Status:** first runtime slice implemented. Matching workspaces with a stored key and configured
-relay now create an encrypted `WorkspaceSession`, sync annotations and presence, render remote
-changes, mirror them to local storage, and dispose transports on teardown. Workspace creation,
-join/unlock UI, and actionable missing-key states remain for QC-NEXT-020 and QC-NEXT-014.
+**Status:** implemented for the current product slice. Matching workspaces with a stored key and
+configured relay create an encrypted `WorkspaceSession`, sync annotations and presence, render
+remote changes, mirror them to local storage, and dispose transports on teardown. Creation and
+invite acceptance activate immediately; matching workspaces without a key show an actionable
+Settings recovery state. Real-browser verification remains in QC-NEXT-015/QC-NEXT-040.
 
 ### QC-NEXT-013 - Background lifecycle and extension messaging *(Story, M)*
 
@@ -176,10 +177,10 @@ join/unlock UI, and actionable missing-key states remain for QC-NEXT-020 and QC-
   logs;
 - lifecycle tests cover worker restart and duplicate messages.
 
-**Status:** partially implemented. A shared message contract now validates `PING`, status,
-relay-state, and settings-open requests; the background entry point registers the handler and
-forwards the browser action to the active tab. Settings UI mounting and worker-restart coverage
-remain for the next slice.
+**Status:** implemented for the current settings route. A shared message contract validates
+`PING`, status, relay-state, and settings-open requests; the background entry point registers the
+handler and forwards the browser action to the active tab. Worker-restart behavior still needs
+real browser coverage.
 
 ### QC-NEXT-014 - Real UI mounting: settings, sidebar, and onboarding *(Story, M)*
 
@@ -198,10 +199,10 @@ remain for the next slice.
 
 **Depends on:** QC-NEXT-013.
 
-**Status:** sidebar and settings slices implemented. The page toolbar now opens a real, filterable
-annotation panel with anchor jumping and disposal; local and live-session updates keep its list
-current. The action-click message now opens a real settings panel backed by workspace and key
-storage. Member/scoping controls and export wiring remain.
+**Status:** implemented for the current product slice. The page toolbar opens a real, filterable
+annotation panel with anchor jumping and disposal; settings covers workspace creation, invite
+acceptance, key backup/import, privacy policy access, member management, page-scope expansion,
+export, and explicit leave confirmation. Real browser focus/close behavior remains to verify.
 
 ### QC-NEXT-015 - Single-user real-browser smoke suite *(Task, M)*
 
@@ -220,6 +221,9 @@ storage. Member/scoping controls and export wiring remain.
 - no uncaught console errors occur.
 
 **Depends on:** QC-NEXT-010 through QC-NEXT-014.
+
+**Status:** automated composition coverage is complete; Chrome/Firefox install, selection,
+scroll, zoom, lazy-content, and console-error verification remains manual in `docs/BROWSER_QA.md`.
 
 ## Phase 2 - Encrypted collaboration product
 
@@ -240,6 +244,10 @@ Goal: turn the tested sync and crypto modules into an intentional user flow.
 - key remains in the URL fragment and never enters query/path or relay requests;
 - accepting an invite stores the correct workspace id/key and activates the same room;
 - cancel, invalid, expired, and already-joined states are clear and recoverable.
+
+**Status:** workspace creation, invite acceptance, immediate activation, locked-workspace
+recovery, duplicate-invite handling, and URL-list scope expansion are implemented and covered by
+controller/content/view tests. Real two-profile browser convergence remains a release gate.
 
 ### QC-NEXT-021 - Wire encrypted SyncClient and PresenceClient *(Story, L)*
 

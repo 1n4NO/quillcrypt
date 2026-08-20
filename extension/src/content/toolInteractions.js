@@ -4,6 +4,7 @@ const { createAnnotation } = require('../models/annotation');
 const { simplifyPoints } = require('../tools/draw');
 const { rectGeometry, ellipseGeometry } = require('../tools/shapes');
 const { renderAnnotation } = require('./annotationRenderer');
+const { hasExistingInlineDecoration } = require('../tools/inlineDecoration');
 
 const DRAG_TOOLS = ['draw', 'arrow', 'rect', 'ellipse'];
 const SELECTION_TOOLS = ['highlight', 'underline', 'note'];
@@ -19,6 +20,7 @@ const SELECTION_TOOLS = ['highlight', 'underline', 'note'];
  */
 function attachToolInteractions({
   doc,
+  win = doc.defaultView,
   root,
   overlaySvg,
   noteLayer,
@@ -32,6 +34,13 @@ function attachToolInteractions({
 }) {
   let dragStart = null;
   let dragPoints = null;
+
+  function documentPoint(event) {
+    return {
+      x: event.clientX + (win?.scrollX || 0),
+      y: event.clientY + (win?.scrollY || 0),
+    };
+  }
 
   async function persistAndRender(record) {
     await store.addAnnotation(url, record);
@@ -48,7 +57,20 @@ function attachToolInteractions({
     const range = selection.getRangeAt(0);
     if (range.collapsed) return;
 
-    const anchor = anchorFromRange(root, range);
+    if (!root.contains(range.commonAncestorContainer)) return;
+    if (tool === 'highlight' && hasExistingInlineDecoration(root, range, '.qc-highlight')) {
+      selection.removeAllRanges();
+      return;
+    }
+    let anchor;
+    try {
+      anchor = anchorFromRange(root, range);
+    } catch {
+      // Pages can replace their DOM between selection and mouseup. Treat that
+      // transient range as unanchorable instead of leaking an unhandled error.
+      selection.removeAllRanges();
+      return;
+    }
     const content = tool === 'note' ? promptForNoteContent() : null;
     const record = createAnnotation({ type: tool, anchor, content, style: { color: toolbarState.getState().color } });
 
@@ -59,7 +81,7 @@ function attachToolInteractions({
   function handleMouseDown(event) {
     const tool = toolbarState.getState().activeTool;
     if (!DRAG_TOOLS.includes(tool)) return;
-    dragStart = { x: event.clientX, y: event.clientY };
+    dragStart = documentPoint(event);
     dragPoints = [dragStart];
   }
 
@@ -67,14 +89,14 @@ function attachToolInteractions({
     if (!dragStart) return;
     const tool = toolbarState.getState().activeTool;
     if (tool === 'draw') {
-      dragPoints.push({ x: event.clientX, y: event.clientY });
+      dragPoints.push(documentPoint(event));
     }
   }
 
   async function handleMouseUpDrag(event) {
     if (!dragStart) return;
     const tool = toolbarState.getState().activeTool;
-    const end = { x: event.clientX, y: event.clientY };
+    const end = documentPoint(event);
     const style = { color: toolbarState.getState().color, strokeWidth: toolbarState.getState().strokeWidth };
 
     let geometry = null;
@@ -100,18 +122,20 @@ function attachToolInteractions({
   // depending on which tool is active — never both at once, since
   // SELECTION_TOOLS and DRAG_TOOLS are disjoint sets.
   function onMouseUp(event) {
-    handleMouseUp();
-    handleMouseUpDrag(event);
+    void handleMouseUp().catch(() => {});
+    void handleMouseUpDrag(event).catch(() => {});
   }
 
-  doc.addEventListener('mouseup', onMouseUp);
-  doc.addEventListener('mousedown', handleMouseDown);
-  doc.addEventListener('mousemove', handleMouseMove);
+  // Capture phase is important on modern app pages: canvas/layout handlers
+  // often stop bubbling mouse events before they reach document listeners.
+  doc.addEventListener('mouseup', onMouseUp, true);
+  doc.addEventListener('mousedown', handleMouseDown, true);
+  doc.addEventListener('mousemove', handleMouseMove, true);
 
   return function dispose() {
-    doc.removeEventListener('mouseup', onMouseUp);
-    doc.removeEventListener('mousedown', handleMouseDown);
-    doc.removeEventListener('mousemove', handleMouseMove);
+    doc.removeEventListener('mouseup', onMouseUp, true);
+    doc.removeEventListener('mousedown', handleMouseDown, true);
+    doc.removeEventListener('mousemove', handleMouseMove, true);
   };
 }
 

@@ -21,10 +21,13 @@ async function main() {
   const settingsContainer = dom.window.document.createElement('div');
   const keyStore = new KeyStore();
   const registry = new WorkspaceRegistry();
+  let activatedWorkspace = null;
   const controller = new SettingsController(keyStore, registry, {
     url: 'https://example.com/article',
     pageTitle: 'Article',
     getAnnotations: async () => [{ id: 'a1', type: 'highlight', anchor: { exact: 'hello' } }],
+    privacyPolicyUrl: 'https://quillcrypt.dev/privacy.html',
+    onWorkspaceCreated: (workspace) => { activatedWorkspace = workspace; },
   });
 
   await registry.addWorkspace({ id: 'ws-1', name: 'My Notes', scopeType: 'domain', scopeValue: 'example.com' });
@@ -42,10 +45,12 @@ async function main() {
 
   const ws2Row = settingsContainer.querySelector('[data-workspace-id="ws-2"]');
   check('settings: workspace WITHOUT a key shows "No key"', ws2Row.querySelector('.qc-settings-badge').textContent === 'No key');
+  check('settings: privacy policy link is available', settingsContainer.querySelector('.qc-settings-privacy-link')?.href === 'https://quillcrypt.dev/privacy.html');
   check('settings: JSON export action is rendered', settingsContainer.querySelector('[download="quillcrypt-annotations.json"]') === null && settingsContainer.querySelector('.qc-settings-export-button') !== null);
   check('settings: controller exports current page annotations', (await controller.exportCurrentPage('json')).includes('"annotationCount": 1'));
   const created = await controller.createWorkspaceForPage({ name: 'New review', scopeType: 'urlList' });
   check('settings: creates a workspace for the active page', created.workspace.scopeValue[0] === 'https://example.com/article');
+  check('settings: creating a workspace activates it immediately', activatedWorkspace?.id === created.workspace.id);
   check('settings: generated invite keeps the key in the URL fragment', new URL(created.inviteLink).hash.startsWith('#key='));
   const joined = new SettingsController(new KeyStore(), new WorkspaceRegistry(), { url: 'https://example.com/article' });
   const accepted = await joined.acceptInvite(created.inviteLink);
@@ -54,6 +59,10 @@ async function main() {
   let duplicateRejected = false;
   try { await joined.acceptInvite(created.inviteLink); } catch { duplicateRejected = true; }
   check('settings: duplicate invite is rejected clearly', duplicateRejected);
+  const addPageButton = settingsContainer.querySelector('[data-workspace-id="ws-2"] .qc-settings-add-page');
+  addPageButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 30));
+  check('settings: URL-list workspace can add the current page', settingsContainer.querySelector('[data-workspace-id="ws-2"] .qc-settings-row-scope').textContent === '2 page(s)');
   const config = { value: '', token: '', async getRelayUrl() { return this.value; }, async setRelayUrl(value) { this.value = value; }, async getRelayAuthToken() { return this.token; }, async setRelayAuthToken(value) { this.token = value; } };
   const configured = new SettingsController(new KeyStore(), new WorkspaceRegistry(), { configBackend: config });
   await configured.setRelayUrl('wss://relay.example.com/');

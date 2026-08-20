@@ -13,8 +13,8 @@ procedure is in `docs/LAUNCH_RUNBOOK.md`.
 - [x] `manifest.json` version matches the root package after `npm run version:sync`
 - [x] Icons are real PNGs at 16/48/128px under `extension/icons/`
 - [x] Chrome packaging and SHA-256 verification pass through `npm run release:verify`
-- [ ] Privacy policy (`docs/PRIVACY_POLICY.md`) is linked from the store listing and from
-      within the extension's settings page
+- [x] Privacy policy is linked from the store listing and from within the extension's settings
+      page (`https://quillcrypt.dev/privacy.html`)
 - [ ] QC-23's manual browser QA pass is complete (scroll/resize/zoom/lazy-load) — don't submit
       with this still outstanding
 - [ ] QC-47's external security audit has at least been scoped, ideally completed, before

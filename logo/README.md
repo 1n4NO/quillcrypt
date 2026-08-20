@@ -16,3 +16,7 @@ Two SVGs, both driven by `currentColor` — no color is baked in, so you set it 
   .logo-mark { color: #1D9E75; }
   ```
 - For a dark-mode variant, don't duplicate the file — just flip `currentColor` at the usage site (CSS variable or `prefers-color-scheme` media query).
+
+The extension's `extension/icons/icon-*.png` files are generated from
+`quillcrypt-mark.svg` by `extension/scripts/generate-icons.py`. The extension
+build reruns that generator before copying the icons into browser bundles.

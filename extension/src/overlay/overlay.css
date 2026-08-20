@@ -8,3 +8,43 @@
   pointer-events: none;
   z-index: 2147483647;
 }
+
+.qc-overlay [data-annotation-id] {
+  pointer-events: visiblePainted;
+  cursor: pointer;
+}
+
+.qc-note-layer {
+  pointer-events: none;
+}
+
+.qc-note-layer [data-annotation-id] {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.qc-annotation-tooltip {
+  position: fixed;
+  z-index: 2147483647;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: #1a1a1a;
+  color: #f5f2e8;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  font: 12px/1.3 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 40ms ease, transform 40ms ease;
+}
+
+.qc-annotation-tooltip-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qc-annotation-tooltip { transition: none; }
+}

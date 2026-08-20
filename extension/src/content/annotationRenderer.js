@@ -8,6 +8,13 @@ const { computeNotePosition } = require('../tools/note');
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+const TOOLTIP_LABELS = {
+  draw: 'Draw annotation',
+  arrow: 'Arrow annotation',
+  rect: 'Rectangle annotation',
+  ellipse: 'Ellipse annotation',
+};
+
 /**
  * Renders one annotation record into the page. `root` is the anchoring
  * root (document.body or similar); `overlaySvg` is the QC-4 SVG overlay
@@ -27,8 +34,12 @@ function renderAnnotation(root, overlaySvg, noteLayer, annotation) {
   if (annotation.type === 'highlight' || annotation.type === 'underline') {
     const range = locateAsRange(root, annotation.anchor);
     if (!range) return false;
-    if (annotation.type === 'highlight') applyHighlight(root, range, annotation.id, color);
-    else applyUnderline(root, range, annotation.id, color);
+    const wrappers = annotation.type === 'highlight'
+      ? applyHighlight(root, range, annotation.id, color)
+      : applyUnderline(root, range, annotation.id, color);
+    wrappers.forEach((wrapper) => {
+      wrapper.dataset.quillcryptTooltip = annotation.anchor?.exact || 'Text annotation';
+    });
     return true;
   }
 
@@ -44,6 +55,7 @@ function renderAnnotation(root, overlaySvg, noteLayer, annotation) {
     const bubble = doc.createElement('div');
     bubble.className = 'qc-note-bubble';
     bubble.dataset.annotationId = annotation.id;
+    bubble.dataset.quillcryptTooltip = annotation.content || 'Note annotation';
     bubble.style.position = 'fixed';
     bubble.style.left = `${pos.x}px`;
     bubble.style.top = `${pos.y}px`;
@@ -62,6 +74,7 @@ function renderAnnotation(root, overlaySvg, noteLayer, annotation) {
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
     path.dataset.annotationId = annotation.id;
+    path.dataset.quillcryptTooltip = TOOLTIP_LABELS.draw;
     overlaySvg.appendChild(path);
     return true;
   }
@@ -71,6 +84,7 @@ function renderAnnotation(root, overlaySvg, noteLayer, annotation) {
     const { linePath, headPath } = computeArrowGeometry(g.x1, g.y1, g.x2, g.y2);
     const group = doc.createElementNS(SVG_NS, 'g');
     group.dataset.annotationId = annotation.id;
+    group.dataset.quillcryptTooltip = TOOLTIP_LABELS.arrow;
     const line = doc.createElementNS(SVG_NS, 'path');
     line.setAttribute('d', linePath);
     line.setAttribute('stroke', color);
@@ -99,6 +113,7 @@ function renderAnnotation(root, overlaySvg, noteLayer, annotation) {
     el.setAttribute('stroke', color);
     el.setAttribute('stroke-width', String(annotation.style?.strokeWidth || 2));
     el.dataset.annotationId = annotation.id;
+    el.dataset.quillcryptTooltip = TOOLTIP_LABELS[annotation.type];
     overlaySvg.appendChild(el);
     return true;
   }

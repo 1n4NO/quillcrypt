@@ -11,7 +11,7 @@
 const STEP_COPY = {
   install: { title: 'Welcome to Quillcrypt', body: 'Select some text on any page to make your first highlight.' },
   'first-annotation': { title: 'Nice — that\'s your first annotation', body: 'Try inviting a teammate to see it live.' },
-  'first-invite': { title: 'Invite sent', body: "You're all set. Annotations you make here are end-to-end encrypted." },
+  'first-invite': { title: 'Workspace ready', body: 'Your annotations are stored securely. Invite teammates from Settings whenever you are ready.' },
 };
 
 async function mountOnboarding(container, onboardingState) {
