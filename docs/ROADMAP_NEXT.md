@@ -16,11 +16,11 @@ The project has a strong, tested core:
 - Firefox and Chrome packaging paths exist;
 - the standalone Editorial landing page exists in `quillcrypt-landing/`.
 
-The product is not ready to ship publicly because the live extension is still only partially
-composed. The content script currently mounts local annotation, toolbar, and onboarding flows,
-but does not connect workspace selection, encrypted sync, presence, member management, settings,
-or the background lifecycle. The relay also persists only in memory, and the security audit,
-real-browser QA, screen-reader QA, store screenshots, and store submission are outstanding.
+The product is not ready to ship publicly because real-browser evidence, external security review,
+store screenshots, and store submission are outstanding. The live content script now composes local
+annotation, workspace selection, encrypted sync, presence, settings, onboarding, member management,
+and the background lifecycle. The relay has file-backed persistence and operational safeguards;
+production retention, backups, and deployment policy still need explicit decisions.
 
 ## Delivery gates
 
@@ -475,6 +475,12 @@ Goal: make the public-facing product truthful, usable, and submission-ready.
 - the page renders without external font availability and does not shift layout when fonts load;
 - all local links and assets work when deployed from the intended host root.
 
+**Status:** local production hardening is implemented. CTAs use versioned Chrome/Firefox archive
+fallbacks, can be switched to real store URLs through `quillcrypt-landing/release-config.js`,
+and the landing verifier checks metadata assets, local references, demo CTA removal, and the
+no-external-font guarantee. The deployment-owned store URLs and real-browser evidence remain
+release gates.
+
 ### QC-NEXT-051 - Store screenshots and product evidence *(Task, M)*
 
 **Problem:** store copy exists, but no real product screenshots exist because the live extension
@@ -508,6 +514,11 @@ Goal: make the public-facing product truthful, usable, and submission-ready.
 - release notes state known limitations, relay durability, audit status, and supported browsers.
 
 **Depends on:** QC-NEXT-002, QC-NEXT-010.
+
+**Status:** version consistency is validated across the root package, extension package, and all
+browser manifests. Firefox and Chrome builds produce versioned archives, and
+`npm run release:verify` records SHA-256 checksums under the ignored artifact directory. Release
+notes and a committed one-source version migration are still outstanding.
 
 ### QC-NEXT-053 - Store submission and launch operations *(Task, M)*
 

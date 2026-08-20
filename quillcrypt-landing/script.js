@@ -27,9 +27,17 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.14 });
 document.querySelectorAll('.reveal').forEach((element) => observer.observe(element));
 
-document.querySelectorAll('[data-demo]').forEach((link) => link.addEventListener('click', (event) => {
-  event.preventDefault();
-  const original = link.innerHTML;
-  link.innerHTML = 'Coming soon <span>↗</span>';
-  window.setTimeout(() => { link.innerHTML = original; }, 1800);
-}));
+document.querySelectorAll('[data-release]').forEach((link) => {
+  const releaseUrl = window.QUILLCRYPT_RELEASES?.[link.dataset.release];
+  if (releaseUrl) {
+    link.href = releaseUrl;
+    if (/^https?:\/\//i.test(releaseUrl)) link.removeAttribute('download');
+    else link.setAttribute('download', '');
+  } else {
+    link.removeAttribute('href');
+    link.removeAttribute('download');
+    link.setAttribute('aria-disabled', 'true');
+    link.classList.add('release-unavailable');
+    link.textContent = `${link.dataset.release === 'chrome' ? 'Chrome' : 'Firefox'} release link unavailable`;
+  }
+});
