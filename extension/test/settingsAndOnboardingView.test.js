@@ -46,8 +46,7 @@ async function main() {
   const ws2Row = settingsContainer.querySelector('[data-workspace-id="ws-2"]');
   check('settings: workspace WITHOUT a key shows "No key"', ws2Row.querySelector('.qc-settings-badge').textContent === 'No key');
   check('settings: privacy policy link is available', settingsContainer.querySelector('.qc-settings-privacy-link')?.href === 'https://quillcrypt.dev/privacy.html');
-  check('settings: JSON export action is rendered', settingsContainer.querySelector('[download="quillcrypt-annotations.json"]') === null && settingsContainer.querySelector('.qc-settings-export-button') !== null);
-  check('settings: controller exports current page annotations', (await controller.exportCurrentPage('json')).includes('"annotationCount": 1'));
+  check('settings: page export action is removed', settingsContainer.querySelector('.qc-settings-export') === null);
   const created = await controller.createWorkspaceForPage({ name: 'New review', scopeType: 'urlList' });
   check('settings: creates a workspace for the active page', created.workspace.scopeValue[0] === 'https://example.com/article');
   check('settings: creating a workspace activates it immediately', activatedWorkspace?.id === created.workspace.id);

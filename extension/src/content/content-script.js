@@ -26,6 +26,7 @@ const { mountRetryObserver } = require('./retryObserver');
 const { mountWorkspaceStatus } = require('../ui/workspaceStatusView');
 const { mountAnnotationTooltip } = require('./annotationTooltip');
 const { locateAsRange } = require('./anchoring/rangeAnchoring');
+const { normalizeUrl } = require('../storage/store');
 
 /**
  * The real mount function, composing every module built and individually
@@ -452,7 +453,43 @@ async function mount(doc, win, storageArea, options = {}) {
 /** Real content-script entry point: guards against double-injection, then mounts. */
 function start(doc, win, storageArea, runtime) {
   injectOnce(doc, () => {
-    mount(doc, win, storageArea, { runtime });
+    const activationStore = new WebExtensionStorageBackend('active-pages', storageArea);
+    const pageKey = normalizeUrl(win.location.href);
+    let mounted = null;
+    let promptHost = null;
+
+    async function enablePage() {
+      await activationStore.set(pageKey, true);
+      promptHost?.remove();
+      promptHost = null;
+      if (!mounted) mounted = await mount(doc, win, storageArea, { runtime });
+      return { ok: true, enabled: true };
+    }
+
+    const handleActivationMessage = (message) => {
+      if (message?.type !== 'QC_ENABLE_PAGE') return undefined;
+      return enablePage();
+    };
+    runtime?.onMessage?.addListener?.(handleActivationMessage);
+
+    function showActivationPrompt() {
+      promptHost = doc.createElement('div');
+      promptHost.className = 'qc-activation-prompt';
+      const text = doc.createElement('span');
+      text.textContent = 'Quillcrypt is off for this page';
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.textContent = 'Enable on this page';
+      button.addEventListener('click', () => enablePage());
+      promptHost.append(text, button);
+      doc.body.appendChild(promptHost);
+    }
+
+    activationStore.get(pageKey).then((enabled) => {
+      if (enabled) return enablePage();
+      showActivationPrompt();
+      return null;
+    }).catch(() => showActivationPrompt());
   });
 }
 

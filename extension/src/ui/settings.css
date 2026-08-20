@@ -168,12 +168,6 @@
   text-align: center;
 }
 
-.qc-settings-export {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e0d4;
-}
-
 .qc-settings-workspace-create {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 160px auto;
@@ -243,23 +237,3 @@
 .qc-settings-member-identity { flex: 1; font-size: 12px; overflow-wrap: anywhere; }
 .qc-settings-member-remove { padding: 5px 8px; border: 1px solid #e5e0d4; border-radius: 6px; background: white; cursor: pointer; }
 .qc-settings-member-status { font-size: 11px; color: #6b6559; }
-
-.qc-settings-export h3 {
-  font-size: 13px;
-  margin: 0 0 8px;
-}
-
-.qc-settings-export-button {
-  margin-right: 8px;
-  padding: 6px 9px;
-  border: 1px solid #e5e0d4;
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-}
-
-.qc-settings-export-status {
-  color: #6b6559;
-  font-size: 11px;
-  min-height: 1em;
-}

@@ -44,7 +44,7 @@ if (browserApi?.storage?.local && browserApi.runtime?.onMessage) {
   browserApi.action?.onClicked?.addListener(async (tab) => {
     if (!tab?.id) return;
     try {
-      await browserApi.tabs?.sendMessage?.(tab.id, { type: MESSAGE_TYPES.OPEN_SETTINGS });
+      await browserApi.tabs?.sendMessage?.(tab.id, { type: MESSAGE_TYPES.ENABLE_PAGE });
     } catch {
       // Restricted pages and tabs without the content script are expected.
     }

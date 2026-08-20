@@ -454,13 +454,6 @@ boundary from Phase 3.
   event is rejected and results in **zero** network calls, verified by asserting the injected
   fetch mock was never invoked
 
-**QC-53 — Export annotations (decrypted, local, user-initiated)** *(Story, S)* — **Done**
-- Deliberate contrast with QC-50–52: export is local-only and never transmitted by this code,
-  so it includes FULL content by design — the opposite restriction from the integrations above
-- Implementation: `extension/src/models/exportAnnotations.js` — versioned JSON export/import
-  (round-trippable) and human-readable Markdown export
-- Tests: `extension/test/exportAnnotations.test.js` (11/11 passing)
-
 **QC-54 — Workspace member management UI** *(Story, M)* — **Done**
 - Same precedent as QC-20's toolbar: this is the state/controller layer a management UI would
   sit on top of, not DOM rendering (not meaningfully unit-testable)

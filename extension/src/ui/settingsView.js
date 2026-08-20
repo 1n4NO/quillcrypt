@@ -197,39 +197,6 @@ async function mountSettings(container, settingsController, { onClose } = {}) {
   list.className = 'qc-settings-list';
   root.appendChild(list);
 
-  const exportSection = doc.createElement('section');
-  exportSection.className = 'qc-settings-export';
-  const exportHeading = doc.createElement('h3');
-  exportHeading.textContent = 'Export this page';
-  exportSection.appendChild(exportHeading);
-  const exportStatus = doc.createElement('p');
-  exportStatus.className = 'qc-settings-export-status';
-  exportStatus.setAttribute('role', 'status');
-  const download = (format, content) => {
-    const extension = format === 'json' ? 'json' : 'md';
-    const link = doc.createElement('a');
-    link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
-    link.download = `quillcrypt-annotations.${extension}`;
-    link.click();
-  };
-  for (const [format, label] of [['json', 'Download JSON'], ['markdown', 'Download Markdown']]) {
-    const button = doc.createElement('button');
-    button.type = 'button';
-    button.className = 'qc-settings-export-button';
-    button.textContent = label;
-    button.addEventListener('click', async () => {
-      try {
-        download(format, await settingsController.exportCurrentPage(format));
-        exportStatus.textContent = `${label} ready.`;
-      } catch (error) {
-        exportStatus.textContent = 'Export is unavailable right now.';
-      }
-    });
-    exportSection.appendChild(button);
-  }
-  exportSection.appendChild(exportStatus);
-  root.appendChild(exportSection);
-
   const emptyState = doc.createElement('p');
   emptyState.className = 'qc-settings-empty';
   emptyState.textContent = "You haven't joined any workspaces yet.";

@@ -1,6 +1,7 @@
 'use strict';
 const { JSDOM } = require('jsdom');
 const { mount, start } = require('../src/content/content-script');
+const { normalizeUrl } = require('../src/storage/store');
 
 let pass = 0, fail = 0;
 function check(label, cond) {
@@ -76,7 +77,9 @@ async function main() {
 
   const dom4 = new JSDOM('<!DOCTYPE html><html><body><p>Started page</p></body></html>', { url });
   const runtime = { onMessage: { addListener() {}, removeListener() {} } };
-  start(dom4.window.document, dom4.window, createMockStorageArea(), runtime);
+  const startStorage = createMockStorageArea();
+  await startStorage.set({ [`active-pages:${normalizeUrl(url)}`]: true });
+  start(dom4.window.document, dom4.window, startStorage, runtime);
   await new Promise((r) => setTimeout(r, 50));
   check('real content-script start mounts without a browserApi scope error', dom4.window.document.querySelector('.qc-toolbar') !== null);
 

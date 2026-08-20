@@ -84,15 +84,6 @@ class SettingsController {
     await this.workspaceRegistry.removeWorkspace(workspaceId);
   }
 
-  async exportCurrentPage(format) {
-    const annotations = await (this.pageContext.getAnnotations?.() || []);
-    const { url, pageTitle } = this.pageContext;
-    const exporters = require('../models/exportAnnotations');
-    if (format === 'json') return exporters.exportToJson(annotations, { url });
-    if (format === 'markdown') return exporters.exportToMarkdown(annotations, { url, pageTitle });
-    throw new Error(`Unknown export format: ${format}`);
-  }
-
   async exportKeyBackup(password) {
     const { exportKeyBackup } = require('../crypto/keyBackup');
     return exportKeyBackup(this.keyStore, this.workspaceRegistry, password);
